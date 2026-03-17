@@ -4,21 +4,12 @@ Logistics Agent — Fulfillment Optimizer
 The Logistics agent analyzes fulfillment and shipping data from public listings.
 ALL data comes from scraping — zero paid APIs, zero cost to us.
 
-What it scrapes from public product pages:
-    - Shipping price and delivery estimates
-    - Prime / free shipping badge
-    - Seller type (FBA, FBM, 3PL, self-fulfilled)
-    - Warehouse location signals (delivery speed by region)
-    - Return policy details
-    - Multi-channel presence (same seller on multiple platforms)
-
-What it analyzes:
-    1. FBA vs FBM recommendation based on category, price point, competition
-    2. Shipping cost competitiveness vs top 10 competitors
-    3. Delivery speed gap (if competitors offer 1-day and you offer 5-day, you lose)
-    4. Inventory health signals (out of stock frequency, listing age)
-    5. Return rate signals (review sentiment about shipping/packaging)
-    6. Multi-channel fulfillment opportunities
+What it analyzes from scraped data:
+    1. Fulfillment type detection (FBA, FBM, WFS, self-fulfilled)
+    2. Shipping cost competitiveness vs competitors
+    3. Delivery speed gap analysis
+    4. Return/packaging sentiment from reviews
+    5. Multi-channel fulfillment opportunities
 
 Input:
     - product (dict): Normalized product data from Scout (includes shipping info)
@@ -27,15 +18,61 @@ Input:
 Output:
     - fulfillment_score (float): 0-100 fulfillment health score
     - fulfillment_type (str): Detected fulfillment method
-    - shipping_competitiveness (dict): How shipping compares to competition
-    - delivery_speed_gap (dict): Days behind/ahead of competitors
+    - shipping_analysis (dict): Cost and speed analysis
     - recommendations (list[dict]): Prioritized fulfillment improvements
-    - estimated_impact (dict): Projected conversion lift from each fix
 """
 
+import logging
 from typing import Any
 
 from src.agents.base import AgentContext, AgentResult, AgentStatus, BaseAgent
+from src.llm import complete_json
+
+logger = logging.getLogger(__name__)
+
+LOGISTICS_SYSTEM = """You are Malak AI's Logistics Agent — an expert ecommerce fulfillment strategist.
+
+Given product listing data and optionally competitor data, analyze the fulfillment and shipping strategy.
+Focus on actionable insights the seller can implement to improve conversion and delivery experience.
+
+SIGNALS TO LOOK FOR:
+- "Ships from Amazon" / Prime badge → FBA
+- "Ships from [seller name]" → FBM
+- "Shipped by Walmart" / WFS badge → Walmart Fulfilled
+- Free shipping threshold vs competitors
+- Delivery estimate (1-day vs 5-7 day)
+- Return policy signals in reviews ("damaged", "late", "packaging")
+
+Respond in JSON format:
+{
+    "fulfillment_score": 0-100,
+    "fulfillment_type": {
+        "detected": "fba|fbm|wfs|3pl|self_fulfilled|shopify_shipping|unknown",
+        "confidence": "high|medium|low",
+        "signals": ["Signal that led to this detection"]
+    },
+    "shipping_analysis": {
+        "free_shipping": true/false,
+        "estimated_delivery_days": null or number,
+        "shipping_cost_assessment": "free|competitive|expensive|unknown",
+        "prime_or_equivalent": true/false
+    },
+    "competitive_position": {
+        "vs_competitors": "faster|same|slower|unknown",
+        "delivery_gap_days": null or number,
+        "price_gap": "cheaper|same|more_expensive|unknown"
+    },
+    "recommendations": [
+        {
+            "action": "Specific fulfillment action",
+            "why": "Why this matters for conversion",
+            "impact": "high|medium|low",
+            "effort": "easy|medium|hard",
+            "expected_result": "What will improve"
+        }
+    ],
+    "estimated_conversion_lift": "X-Y% estimated improvement from implementing recommendations"
+}"""
 
 
 class LogisticsAgent(BaseAgent):
@@ -56,69 +93,82 @@ class LogisticsAgent(BaseAgent):
         return errors
 
     async def execute(self, context: AgentContext, input_data: dict[str, Any]) -> AgentResult:
-        """
-        Analyze fulfillment and shipping competitiveness.
-
-        TODO: Implement the full logistics pipeline:
-        1. Detect fulfillment type from listing signals:
-           - "Ships from Amazon" → FBA
-           - "Ships from [seller]" → FBM
-           - Shopify: check shipping rates, carrier info
-           - Walmart: WFS badge detection
-        2. Extract shipping data:
-           - Shipping price (free, flat rate, calculated)
-           - Delivery estimate (1-day, 2-day, 5-7 day, etc.)
-           - Prime/Plus/Express badge presence
-        3. Compare vs competitors (from Spy agent data):
-           - Shipping cost delta
-           - Delivery speed delta
-           - Free shipping threshold comparison
-        4. Analyze return signals from reviews:
-           - NLP scan for "shipping", "packaging", "damaged", "late"
-           - Return policy comparison
-        5. Multi-channel fulfillment check:
-           - Same product on Amazon + Shopify? Using MCF?
-           - Could they consolidate fulfillment?
-        6. LLM-powered recommendations:
-           - "Switch to FBA: competitors in your category are 80% FBA"
-           - "Your delivery is 3 days slower than top 3 competitors"
-           - "Add free shipping over $35 — competitors offer it at $25"
-        """
+        """Analyze fulfillment and shipping competitiveness via LLM."""
         product = input_data["product"]
         competitors = input_data.get("competitors", [])
+        platform = product.get("platform", "unknown")
 
-        # TODO: Detect fulfillment type
-        # fulfillment_type = detect_fulfillment_type(product)
-
-        # TODO: Extract shipping data
-        # shipping_data = extract_shipping_info(product)
-
-        # TODO: Compare with competitors
-        # shipping_comparison = compare_shipping(shipping_data, competitors)
-        # delivery_gap = compare_delivery_speed(shipping_data, competitors)
-
-        # TODO: Scan reviews for fulfillment issues
-        # fulfillment_sentiment = analyze_fulfillment_reviews(product.get("reviews", []))
-
-        # TODO: Check multi-channel opportunities
-        # multi_channel = detect_multi_channel(product, context)
-
-        # TODO: LLM-powered recommendation generation
-        # recommendations = await generate_fulfillment_recommendations(all_data)
-
-        # Stub response
-        return AgentResult(
-            agent_name=self.name,
-            status=AgentStatus.COMPLETED,
-            data={
-                "fulfillment_score": 0,
-                "fulfillment_type": "unknown",
-                "shipping_competitiveness": {},
-                "delivery_speed_gap": {},
-                "return_signals": {},
-                "multi_channel_opportunities": [],
-                "recommendations": [],
-                "estimated_impact": {},
-                "message": "Logistics agent is not yet implemented",
-            },
+        logger.info(
+            "Logistics: analyzing fulfillment for '%s' on %s",
+            product.get("title", "")[:50],
+            platform,
         )
+
+        # Build competitor shipping context
+        comp_text = "No competitor fulfillment data available."
+        if competitors:
+            comp_lines = []
+            for i, comp in enumerate(competitors[:10], 1):
+                raw = comp.get("raw_data", {})
+                comp_lines.append(
+                    f"  {i}. {comp.get('title', 'N/A')[:60]}\n"
+                    f"     Price: {comp.get('currency', 'USD')} {comp.get('price', 'N/A')}\n"
+                    f"     Fulfillment signals: {raw.get('fulfillment_type', 'unknown')}\n"
+                    f"     Free shipping: {raw.get('free_shipping', 'unknown')}\n"
+                    f"     Delivery estimate: {raw.get('delivery_estimate', 'unknown')}"
+                )
+            comp_text = "COMPETITOR FULFILLMENT DATA:\n" + "\n".join(comp_lines)
+
+        # Extract shipping signals from raw_data
+        raw = product.get("raw_data", {})
+        shipping_signals = {
+            "fulfillment_type": raw.get("fulfillment_type", "unknown"),
+            "free_shipping": raw.get("free_shipping"),
+            "delivery_estimate": raw.get("delivery_estimate"),
+            "prime_badge": raw.get("prime", raw.get("is_prime")),
+            "seller_name": raw.get("seller", raw.get("seller_name", raw.get("vendor"))),
+            "return_policy": raw.get("return_policy"),
+        }
+
+        try:
+            analysis = await complete_json(
+                system=LOGISTICS_SYSTEM,
+                prompt=(
+                    f"Analyze the fulfillment strategy for this {platform} product:\n\n"
+                    f"PRODUCT:\n"
+                    f"  Title: {product.get('title', 'N/A')}\n"
+                    f"  Platform: {platform}\n"
+                    f"  Price: {product.get('currency', 'USD')} {product.get('price', 'N/A')}\n"
+                    f"  In Stock: {product.get('in_stock', 'unknown')}\n"
+                    f"  Rating: {product.get('rating', 'N/A')}/5 ({product.get('review_count', 0)} reviews)\n\n"
+                    f"SHIPPING SIGNALS FROM LISTING:\n"
+                    f"  Fulfillment type: {shipping_signals['fulfillment_type']}\n"
+                    f"  Free shipping: {shipping_signals['free_shipping']}\n"
+                    f"  Delivery estimate: {shipping_signals['delivery_estimate']}\n"
+                    f"  Prime/equivalent badge: {shipping_signals['prime_badge']}\n"
+                    f"  Seller: {shipping_signals['seller_name']}\n"
+                    f"  Return policy: {shipping_signals['return_policy']}\n\n"
+                    f"{comp_text}\n\n"
+                    f"Provide a fulfillment analysis with actionable recommendations."
+                ),
+            )
+
+            logger.info(
+                "Logistics: analysis complete — score=%s, type=%s",
+                analysis.get("fulfillment_score", "N/A"),
+                analysis.get("fulfillment_type", {}).get("detected", "unknown"),
+            )
+
+            return AgentResult(
+                agent_name=self.name,
+                status=AgentStatus.COMPLETED,
+                data=analysis,
+            )
+
+        except Exception as e:
+            logger.error("Logistics: LLM analysis failed: %s", e)
+            return AgentResult(
+                agent_name=self.name,
+                status=AgentStatus.FAILED,
+                errors=[f"Logistics analysis failed: {e}"],
+            )
