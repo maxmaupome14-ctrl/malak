@@ -7,8 +7,6 @@ services:
       POSTGRES_USER: malak
       POSTGRES_PASSWORD: malak
       POSTGRES_DB: malak
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -21,8 +19,6 @@ services:
   valkey:
     image: valkey/valkey:8-alpine
     restart: unless-stopped
-    ports:
-      - "6379:6379"
     volumes:
       - valkey_data:/data
     healthcheck:
@@ -44,6 +40,27 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://malak:malak@postgres:5432/malak
       VALKEY_URL: redis://valkey:6379/0
+    command: sh -c "alembic upgrade head && uvicorn src.main:app --host 0.0.0.0 --port 8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    volumes:
+      - ./api/src:/app/src
+
+  # ── ARQ Background Worker ─────────────────────────
+  worker:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://malak:malak@postgres:5432/malak
+      VALKEY_URL: redis://valkey:6379/0
+    command: arq src.worker.WorkerSettings
     depends_on:
       postgres:
         condition: service_healthy

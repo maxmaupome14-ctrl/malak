@@ -56,8 +56,8 @@ class Product(Base):
     review_count: Mapped[int] = mapped_column(Integer, default=0)
 
     # ── Flexible data (JSONB) ────────────────────────
-    images: Mapped[dict] = mapped_column(JSONB, default=list)
-    bullet_points: Mapped[dict] = mapped_column(JSONB, default=list)
+    images: Mapped[list] = mapped_column(JSONB, default=list)
+    bullet_points: Mapped[list] = mapped_column(JSONB, default=list)
     raw_data: Mapped[dict] = mapped_column(JSONB, default=dict)
     metadata_: Mapped[dict] = mapped_column("metadata", JSONB, default=dict)
 

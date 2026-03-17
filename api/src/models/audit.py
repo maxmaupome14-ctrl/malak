@@ -67,9 +67,9 @@ class AuditResult(Base):
     # }
 
     # ── Analysis ─────────────────────────────────────
-    strengths: Mapped[dict] = mapped_column(JSONB, default=list)
-    weaknesses: Mapped[dict] = mapped_column(JSONB, default=list)
-    recommendations: Mapped[dict] = mapped_column(JSONB, default=list)
+    strengths: Mapped[list] = mapped_column(JSONB, default=list)
+    weaknesses: Mapped[list] = mapped_column(JSONB, default=list)
+    recommendations: Mapped[list] = mapped_column(JSONB, default=list)
     # Each recommendation:
     # {
     #     "title": "Optimize title with primary keyword",

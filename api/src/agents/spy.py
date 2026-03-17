@@ -1,32 +1,64 @@
 """
 Spy Agent — Competitive Intelligence
 
-The Spy is the intelligence officer of Malak. It:
-1. Identifies competitors for a given product/niche
-2. Tracks competitor pricing, listings, and reviews over time
-3. Detects market trends and shifts
-4. Identifies opportunities and threats
+The Spy is the intelligence officer of Malak. Given a product, it:
+1. Uses LLM to analyze competitive positioning
+2. Compares against provided competitor data (from Scout batch scrapes)
+3. Generates market insights and threat assessment
+
+For MVP: Takes the user's product data and any competitor data already
+scraped, then uses LLM to generate a competitive analysis.
+
+Future: Will auto-discover competitors by searching the marketplace
+and batch-scraping the top results via Scout.
 
 Input:
     - product (dict): The user's product data
-    - keywords (list[str], optional): Target keywords to monitor
-    - competitor_urls (list[str], optional): Known competitor URLs
-    - depth (int, optional): How many competitors to analyze (default: 10)
+    - competitors (list[dict], optional): Pre-scraped competitor data
+    - platform (str): Target platform
 
 Output:
-    - competitors (list[dict]): Ranked competitor data
-    - market_insights (dict): Market position, trends, opportunities
-    - price_analysis (dict): Price distribution, positioning recommendation
-    - threat_level (str): low | medium | high | critical
+    - competitive_summary (str): Executive summary
+    - price_position (dict): Where user's price sits vs market
+    - strengths_vs_market (list[str]): Advantages over competitors
+    - weaknesses_vs_market (list[str]): Gaps vs competitors
+    - opportunities (list[str]): Market opportunities identified
+    - threat_level (str): low | medium | high
 """
 
+import logging
 from typing import Any
 
 from src.agents.base import AgentContext, AgentResult, AgentStatus, BaseAgent
+from src.llm import complete_json
+
+logger = logging.getLogger(__name__)
+
+SPY_SYSTEM = """You are Malak AI's Spy — an expert ecommerce competitive intelligence analyst.
+
+Given a product listing and optionally competitor data, analyze the competitive landscape.
+Focus on actionable insights the seller can use to improve their market position.
+
+Respond in JSON format:
+{
+    "competitive_summary": "2-3 sentence executive summary of competitive position",
+    "price_position": {
+        "assessment": "underpriced|competitive|overpriced",
+        "reasoning": "Why this assessment"
+    },
+    "strengths_vs_market": ["Advantage 1", "Advantage 2"],
+    "weaknesses_vs_market": ["Gap 1", "Gap 2"],
+    "opportunities": ["Opportunity 1", "Opportunity 2"],
+    "threats": ["Threat 1", "Threat 2"],
+    "threat_level": "low|medium|high",
+    "recommended_actions": [
+        {"action": "What to do", "impact": "high|medium|low", "timeframe": "immediate|short_term|long_term"}
+    ]
+}"""
 
 
 class SpyAgent(BaseAgent):
-    """Monitors competitors and builds market intelligence reports."""
+    """Analyzes competitive landscape and generates market intelligence."""
 
     @property
     def name(self) -> str:
@@ -38,45 +70,66 @@ class SpyAgent(BaseAgent):
 
     async def validate_input(self, input_data: dict[str, Any]) -> list[str]:
         errors: list[str] = []
-        if "product" not in input_data and "keywords" not in input_data:
-            errors.append("Either 'product' or 'keywords' is required")
+        if "product" not in input_data:
+            errors.append("'product' data is required")
         return errors
 
     async def execute(self, context: AgentContext, input_data: dict[str, Any]) -> AgentResult:
-        """
-        Gather competitive intelligence for a product or niche.
+        """Analyze competitive landscape using LLM."""
+        product = input_data["product"]
+        competitors = input_data.get("competitors", [])
+        platform = input_data.get("platform", product.get("platform", "unknown"))
 
-        TODO: Implement the full competitive analysis pipeline:
-        1. Identify competitors (search by keywords, category, or known URLs)
-        2. Scrape competitor listings via Scout agent
-        3. Analyze pricing distribution and positioning
-        4. Compare listing quality (title, images, reviews)
-        5. Track review velocity and sentiment
-        6. Detect market trends (new entrants, price shifts, demand signals)
-        7. Calculate threat level
-        8. Generate market insights using LLM
-        """
-        # TODO: Competitor discovery
-        # competitors = await discover_competitors(product, keywords, depth)
-
-        # TODO: Batch scrape competitors via Scout
-        # competitor_data = await batch_scrape(competitors)
-
-        # TODO: Price analysis
-        # price_analysis = analyze_pricing(product, competitor_data)
-
-        # TODO: Market insight generation via LLM
-        # insights = await generate_market_insights(product, competitor_data)
-
-        # Stub response
-        return AgentResult(
-            agent_name=self.name,
-            status=AgentStatus.COMPLETED,
-            data={
-                "competitors": [],
-                "market_insights": {},
-                "price_analysis": {},
-                "threat_level": "unknown",
-                "message": "Spy agent is not yet implemented",
-            },
+        logger.info(
+            "Spy: analyzing competition for '%s' (%d competitors provided)",
+            product.get("title", "")[:50],
+            len(competitors),
         )
+
+        # Build competitor context
+        comp_text = "No competitor data available — analyze based on product category and pricing signals."
+        if competitors:
+            comp_lines = []
+            for i, comp in enumerate(competitors[:10], 1):
+                comp_lines.append(
+                    f"  {i}. {comp.get('title', 'N/A')[:80]}\n"
+                    f"     Price: {comp.get('currency', 'USD')} {comp.get('price', 'N/A')}\n"
+                    f"     Rating: {comp.get('rating', 'N/A')}/5 ({comp.get('review_count', 0)} reviews)\n"
+                    f"     Images: {len(comp.get('images', []))}"
+                )
+            comp_text = "COMPETITORS:\n" + "\n".join(comp_lines)
+
+        try:
+            analysis = await complete_json(
+                system=SPY_SYSTEM,
+                prompt=(
+                    f"Analyze the competitive landscape for this {platform} product:\n\n"
+                    f"USER'S PRODUCT:\n"
+                    f"  Title: {product.get('title', 'N/A')}\n"
+                    f"  Brand: {product.get('brand', 'N/A')}\n"
+                    f"  Price: {product.get('currency', 'USD')} {product.get('price', 'N/A')}\n"
+                    f"  Rating: {product.get('rating', 'N/A')}/5 ({product.get('review_count', 0)} reviews)\n"
+                    f"  Images: {len(product.get('images', []))}\n"
+                    f"  Category: {product.get('category', 'N/A')}\n\n"
+                    f"{comp_text}"
+                ),
+            )
+
+            logger.info(
+                "Spy: analysis complete — threat_level=%s",
+                analysis.get("threat_level", "unknown"),
+            )
+
+            return AgentResult(
+                agent_name=self.name,
+                status=AgentStatus.COMPLETED,
+                data=analysis,
+            )
+
+        except Exception as e:
+            logger.error("Spy: LLM analysis failed: %s", e)
+            return AgentResult(
+                agent_name=self.name,
+                status=AgentStatus.FAILED,
+                errors=[f"Competitive analysis failed: {e}"],
+            )

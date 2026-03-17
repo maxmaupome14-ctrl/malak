@@ -5,6 +5,8 @@ Audit routes — run and manage product listing audits.
 import uuid
 from datetime import datetime, timezone
 
+from arq import create_pool
+from arq.connections import RedisSettings
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, HttpUrl
 from sqlalchemy import select
@@ -12,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.auth.models import User
 from src.auth.router import current_active_user
+from src.config import settings
 from src.database import get_async_session
 from src.models.audit import AuditResult, AuditStatus
 
@@ -38,10 +41,25 @@ class AuditResponse(BaseModel):
     weaknesses: list = []
     recommendations: list = []
     generated_copy: dict = {}
+    error_message: str | None = None
     created_at: datetime | None = None
     completed_at: datetime | None = None
 
     model_config = {"from_attributes": True}
+
+
+# ── Helpers ──────────────────────────────────────────
+
+def _parse_redis_url(url: str) -> RedisSettings:
+    from urllib.parse import urlparse
+
+    parsed = urlparse(url)
+    return RedisSettings(
+        host=parsed.hostname or "localhost",
+        port=parsed.port or 6379,
+        database=int(parsed.path.lstrip("/") or 0),
+        password=parsed.password,
+    )
 
 
 # ── Routes ────────────────────────────────────────────
@@ -55,14 +73,8 @@ async def create_audit(
     """
     Start a new product listing audit.
 
-    The audit runs asynchronously through the agent pipeline:
-    1. Scout scrapes the product URL
-    2. Auditor analyzes the listing
-    3. Spy gathers competitive intel (optional)
-    4. Strategist generates action plan
-    5. Copywriter generates optimized copy
-
     Returns the audit record immediately with status=pending.
+    The audit runs asynchronously through the agent pipeline.
     Poll GET /audit/{id} for results.
     """
     audit = AuditResult(
@@ -73,9 +85,17 @@ async def create_audit(
     session.add(audit)
     await session.flush()
 
-    # TODO: Enqueue the audit pipeline as a background task
-    # await arq_pool.enqueue_job("run_audit_pipeline", audit.id)
+    # Enqueue the audit pipeline as a background task
+    try:
+        redis = await create_pool(_parse_redis_url(settings.VALKEY_URL))
+        await redis.enqueue_job("run_audit_pipeline", str(audit.id))
+        await redis.close()
+    except Exception:
+        # If Redis is unavailable, run synchronously (dev fallback)
+        from src.pipeline import run_audit_pipeline
+        await run_audit_pipeline({}, str(audit.id))
 
+    await session.commit()
     return audit
 
 

@@ -2,6 +2,7 @@
 FastAPI-Users UserManager — handles user lifecycle events.
 """
 
+import logging
 import uuid
 from typing import Optional
 
@@ -9,6 +10,8 @@ from fastapi import Depends, Request
 from fastapi_users import BaseUserManager, UUIDIDMixin
 from fastapi_users.db import SQLAlchemyUserDatabase
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 from src.config import settings
 from src.database import get_async_session
@@ -32,21 +35,21 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         """Called after a new user registers."""
         # TODO: Send welcome email
         # TODO: Create default store for user
-        print(f"User {user.id} ({user.email}) has registered.")
+        logger.info("New user registered: %s", user.id)
 
     async def on_after_forgot_password(
         self, user: User, token: str, request: Optional[Request] = None
     ) -> None:
         """Called after a password reset is requested."""
         # TODO: Send password reset email
-        print(f"User {user.id} requested password reset. Token: {token}")
+        logger.info("Password reset requested for user: %s", user.id)
 
     async def on_after_request_verify(
         self, user: User, token: str, request: Optional[Request] = None
     ) -> None:
         """Called after email verification is requested."""
         # TODO: Send verification email
-        print(f"Verification requested for user {user.id}. Token: {token}")
+        logger.info("Email verification requested for user: %s", user.id)
 
 
 async def get_user_db(session: AsyncSession = Depends(get_async_session)):

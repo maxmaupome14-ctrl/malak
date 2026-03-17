@@ -6,6 +6,7 @@ All values are read from environment variables or a .env file.
 
 from functools import lru_cache
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -57,6 +58,14 @@ class Settings(BaseSettings):
 
     # ── Monitoring ───────────────────────────────────
     SENTRY_DSN: str | None = None
+
+    @model_validator(mode="after")
+    def _validate_secret_key(self) -> "Settings":
+        if self.is_production and self.SECRET_KEY == "change-me-to-a-random-64-char-string":
+            raise ValueError(
+                "SECRET_KEY must be changed from its default value in production"
+            )
+        return self
 
     @property
     def is_production(self) -> bool:

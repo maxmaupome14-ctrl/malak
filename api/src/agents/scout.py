@@ -5,21 +5,24 @@ The Scout is the eyes of Malak. Given any product URL, it:
 1. Detects the platform (Amazon, Shopify, Walmart, MercadoLibre, etc.)
 2. Routes to the appropriate scraper
 3. Extracts structured product data
-4. Normalizes it into a unified schema
+4. Returns normalized data in a unified schema
 
 Input:
     - url (str): Product URL to scrape
-    - options (dict): Platform-specific scraping options
 
 Output:
-    - product (dict): Normalized product data
-    - platform (str): Detected platform
-    - raw_html_hash (str): Hash of raw HTML for change detection
+    - product (dict): Normalized product data (ScrapedProduct as dict)
+    - platform (str): Detected platform name
 """
 
+import logging
+from dataclasses import asdict
 from typing import Any
 
 from src.agents.base import AgentContext, AgentResult, AgentStatus, BaseAgent
+from src.scrapers import ScrapingError, detect_scraper
+
+logger = logging.getLogger(__name__)
 
 
 class ScoutAgent(BaseAgent):
@@ -47,36 +50,65 @@ class ScoutAgent(BaseAgent):
         """
         Scrape a product URL and return structured data.
 
-        TODO: Implement the full scraping pipeline:
-        1. Detect platform from URL
-        2. Select appropriate scraper (Amazon, Shopify, etc.)
-        3. Fetch page (via Playwright for JS-rendered, httpx for static)
-        4. Parse product data
-        5. Normalize into unified Product schema
-        6. Return structured result
+        Pipeline:
+        1. Detect platform from URL → select scraper
+        2. Execute scraper → get ScrapedProduct
+        3. Convert to dict → return as AgentResult
         """
         url = input_data["url"]
 
-        # TODO: Platform detection
-        # platform = detect_platform(url)
+        # 1. Find the right scraper
+        scraper = detect_scraper(url)
+        if not scraper:
+            return AgentResult(
+                agent_name=self.name,
+                status=AgentStatus.FAILED,
+                errors=[
+                    f"Unsupported platform. No scraper available for: {url}. "
+                    f"Supported: Amazon, Shopify, Walmart, MercadoLibre."
+                ],
+            )
 
-        # TODO: Route to appropriate scraper
-        # scraper = get_scraper(platform)
+        logger.info(
+            "Scout: scraping %s with %s scraper",
+            url[:80],
+            scraper.platform_name,
+        )
 
-        # TODO: Execute scraping
-        # raw_data = await scraper.scrape(url)
+        # 2. Scrape the product
+        try:
+            product = await scraper.scrape(url)
+        except ScrapingError as e:
+            logger.warning("Scout: scraping failed for %s: %s", url[:80], e)
+            return AgentResult(
+                agent_name=self.name,
+                status=AgentStatus.FAILED,
+                errors=[f"Scraping failed: {e}"],
+            )
+        except Exception as e:
+            logger.error("Scout: unexpected error scraping %s: %s", url[:80], e, exc_info=True)
+            return AgentResult(
+                agent_name=self.name,
+                status=AgentStatus.FAILED,
+                errors=[f"Unexpected error: {e}"],
+            )
 
-        # TODO: Normalize data
-        # product = normalize_product(raw_data, platform)
+        # 3. Return structured result
+        product_dict = asdict(product)
 
-        # Stub response
+        logger.info(
+            "Scout: successfully scraped %s — title='%s', price=%s",
+            scraper.platform_name,
+            product.title[:50] if product.title else "(no title)",
+            product.price,
+        )
+
         return AgentResult(
             agent_name=self.name,
             status=AgentStatus.COMPLETED,
             data={
                 "url": url,
-                "platform": "unknown",
-                "product": {},
-                "message": "Scout agent is not yet implemented",
+                "platform": product.platform,
+                "product": product_dict,
             },
         )
