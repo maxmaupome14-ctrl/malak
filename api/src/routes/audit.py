@@ -43,6 +43,7 @@ class AuditResponse(BaseModel):
     weaknesses: list = []
     recommendations: list = []
     generated_copy: dict = {}
+    competitive_data: dict = {}
     error_message: str | None = None
     created_at: datetime | None = None
     completed_at: datetime | None = None

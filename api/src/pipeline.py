@@ -1,18 +1,19 @@
 """
-Audit Pipeline — Orchestrates the agent swarm for a full product audit.
+Audit Pipeline — Orchestrates the full agent swarm for a product audit.
 
 Flow:
     1. Scout scrapes the product URL
     2. Auditor analyzes the listing and generates scores
-    3. (Future) Spy finds competitors
-    4. (Future) Strategist creates action plan
-    5. (Future) Copywriter generates optimized copy
+    3. Spy generates competitive intelligence (parallel-safe)
+    4. Strategist creates an action plan from audit + spy data
+    5. Copywriter generates optimized copy from audit data
     6. Results saved to database
 
 Each step updates the audit status in DB so the frontend
-can show real-time progress.
+can show real-time progress via polling.
 """
 
+import asyncio
 import logging
 from datetime import datetime, timezone
 from uuid import UUID
@@ -22,7 +23,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.agents.auditor import AuditorAgent
 from src.agents.base import AgentContext
+from src.agents.copywriter import CopywriterAgent
 from src.agents.scout import ScoutAgent
+from src.agents.spy import SpyAgent
+from src.agents.strategist import StrategistAgent
 from src.database import async_session_factory
 from src.models.audit import AuditResult, AuditStatus
 
@@ -52,7 +56,7 @@ async def run_audit_pipeline(ctx: dict, audit_id: str) -> None:
         agent_context = AgentContext(user_id=audit.user_id)
 
         try:
-            # ── Step 1: Scout ─────────────────────────────
+            # ── Step 1: Scout — Scrape the product ─────────
             await _update_status(session, audit, AuditStatus.SCRAPING)
 
             scout = ScoutAgent()
@@ -67,7 +71,7 @@ async def run_audit_pipeline(ctx: dict, audit_id: str) -> None:
 
             product_data = scout_result.data.get("product", {})
 
-            # ── Step 2: Auditor ───────────────────────────
+            # ── Step 2: Auditor — Score the listing ────────
             await _update_status(session, audit, AuditStatus.ANALYZING)
 
             auditor = AuditorAgent()
@@ -80,22 +84,85 @@ async def run_audit_pipeline(ctx: dict, audit_id: str) -> None:
                 )
                 return
 
-            # ── Save results ──────────────────────────────
             audit_data = auditor_result.data
+
+            # Save audit scores immediately so frontend shows progress
             audit.overall_score = audit_data.get("overall_score", 0)
             audit.dimension_scores = audit_data.get("dimension_scores", {})
             audit.strengths = audit_data.get("strengths", [])
             audit.weaknesses = audit_data.get("weaknesses", [])
             audit.recommendations = audit_data.get("recommendations", [])
+            await session.commit()
+
+            # ── Step 3: Spy + Copywriter — Run in parallel ─
+            await _update_status(session, audit, AuditStatus.GENERATING)
+
+            spy = SpyAgent()
+            copywriter = CopywriterAgent()
+
+            spy_task = asyncio.create_task(
+                spy.run(agent_context, {"product": product_data})
+            )
+            copy_task = asyncio.create_task(
+                copywriter.run(agent_context, {
+                    "product": product_data,
+                    "audit_data": audit_data,
+                    "platform": product_data.get("platform", "amazon"),
+                })
+            )
+
+            spy_result, copy_result = await asyncio.gather(
+                spy_task, copy_task, return_exceptions=True
+            )
+
+            # Extract competitive intel (non-fatal if it fails)
+            competitive_data = {}
+            if isinstance(spy_result, Exception):
+                logger.warning("Pipeline: Spy failed (non-fatal): %s", spy_result)
+            elif spy_result.success:
+                competitive_data = spy_result.data
+                audit.competitive_data = competitive_data
+
+            # Extract generated copy (non-fatal if it fails)
+            if isinstance(copy_result, Exception):
+                logger.warning("Pipeline: Copywriter failed (non-fatal): %s", copy_result)
+            elif copy_result.success:
+                audit.generated_copy = copy_result.data
+
+            # ── Step 4: Strategist — Action plan ───────────
+            strategist = StrategistAgent()
+            strategist_result = await strategist.run(agent_context, {
+                "audit_result": audit_data,
+                "competitive_intel": competitive_data,
+                "product": product_data,
+            })
+
+            # Merge strategy into recommendations if successful
+            if not isinstance(strategist_result, Exception) and strategist_result.success:
+                strategy = strategist_result.data
+                # Add strategy data to generated_copy for frontend access
+                existing_copy = audit.generated_copy or {}
+                existing_copy["strategy"] = {
+                    "summary": strategy.get("summary", ""),
+                    "quick_wins": strategy.get("quick_wins", []),
+                    "strategic_moves": strategy.get("strategic_moves", []),
+                    "weekly_plan": strategy.get("weekly_plan", {}),
+                    "estimated_score_improvement": strategy.get("estimated_score_improvement", {}),
+                }
+                audit.generated_copy = existing_copy
+
+            # ── Done ───────────────────────────────────────
             audit.status = AuditStatus.COMPLETED
             audit.completed_at = datetime.now(timezone.utc)
-
             await session.commit()
 
             logger.info(
-                "Pipeline: audit %s completed — score=%s/100",
+                "Pipeline: audit %s completed — score=%s/100, spy=%s, copy=%s, strategy=%s",
                 audit_id,
                 audit.overall_score,
+                "ok" if competitive_data else "skipped",
+                "ok" if audit.generated_copy.get("title") else "skipped",
+                "ok" if audit.generated_copy.get("strategy") else "skipped",
             )
 
         except Exception as e:
