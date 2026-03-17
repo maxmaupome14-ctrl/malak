@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
 
 type AuditStatus = "pending" | "scraping" | "analyzing" | "generating" | "completed" | "failed";
@@ -127,10 +127,12 @@ function DimensionBar({ label, score }: { label: string; score: number }) {
 }
 
 export default function AuditPage() {
+  const searchParams = useSearchParams();
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [audit, setAudit] = useState<AuditResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const autoStarted = useRef(false);
 
   const handleAudit = async () => {
     if (!url.trim()) return;
@@ -139,7 +141,7 @@ export default function AuditPage() {
     setAudit(null);
 
     try {
-      const result = await api.post<AuditResult>("/audit", { url });
+      const result = await api.post<AuditResult>("/audit/free", { url });
       setAudit(result);
     } catch (e: any) {
       setError(e.message || "Failed to start audit");
@@ -152,7 +154,7 @@ export default function AuditPage() {
     if (!audit || audit.status === "completed" || audit.status === "failed") return;
 
     try {
-      const updated = await api.get<AuditResult>(`/audit/${audit.id}`);
+      const updated = await api.get<AuditResult>(`/audit/status/${audit.id}`);
       setAudit(updated);
       if (updated.status === "completed" || updated.status === "failed") {
         setLoading(false);
@@ -167,6 +169,26 @@ export default function AuditPage() {
     const interval = setInterval(pollAudit, 2000);
     return () => clearInterval(interval);
   }, [audit, pollAudit]);
+
+  // Auto-start audit if URL is in query params (from landing page)
+  useEffect(() => {
+    const urlParam = searchParams.get("url");
+    if (urlParam && !autoStarted.current) {
+      autoStarted.current = true;
+      setUrl(urlParam);
+      // Trigger audit after state update
+      setTimeout(() => {
+        setLoading(true);
+        setError(null);
+        api.post<AuditResult>("/audit/free", { url: urlParam })
+          .then((result) => setAudit(result))
+          .catch((e: any) => {
+            setError(e.message || "Failed to start audit");
+            setLoading(false);
+          });
+      }, 0);
+    }
+  }, [searchParams]);
 
   const isProcessing = audit && !["completed", "failed"].includes(audit.status);
   const isComplete = audit?.status === "completed";

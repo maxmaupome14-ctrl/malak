@@ -1,6 +1,21 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function LandingPage() {
+  const [url, setUrl] = useState("");
+  const router = useRouter();
+
+  const handleAudit = () => {
+    if (url.trim()) {
+      router.push(`/audit?url=${encodeURIComponent(url.trim())}`);
+    } else {
+      router.push("/audit");
+    }
+  };
+
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
       {/* Nav */}
@@ -36,7 +51,7 @@ export default function LandingPage() {
         </div>
         <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
           <Link
-            href="https://github.com/maxnmcl/malak"
+            href="https://github.com/maxmaupome14-ctrl/malak"
             style={{ color: "#94a3b8", fontSize: "14px", textDecoration: "none" }}
           >
             GitHub
@@ -127,17 +142,20 @@ export default function LandingPage() {
         >
           <input
             type="url"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleAudit()}
             placeholder="Paste any product URL..."
             className="input"
             style={{ flex: 1, fontSize: "16px", padding: "14px 20px" }}
           />
-          <Link
-            href="/audit"
+          <button
+            onClick={handleAudit}
             className="btn-primary"
             style={{ padding: "14px 32px", fontSize: "16px", whiteSpace: "nowrap" }}
           >
             Audit Now
-          </Link>
+          </button>
         </div>
 
         {/* Supported platforms */}
@@ -192,6 +210,11 @@ export default function LandingPage() {
               icon: "👁️",
               name: "Sentinel",
               desc: "24/7 monitor — alerts you when competitors move or your market shifts",
+            },
+            {
+              icon: "📦",
+              name: "Logistics",
+              desc: "Fulfillment optimizer — analyzes shipping, delivery speed, and logistics strategy",
             },
           ].map((agent) => (
             <div

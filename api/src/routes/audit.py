@@ -1,5 +1,7 @@
 """
 Audit routes — run and manage product listing audits.
+
+Includes both public (free tier) and authenticated endpoints.
 """
 
 import uuid
@@ -7,7 +9,7 @@ from datetime import datetime, timezone
 
 from arq import create_pool
 from arq.connections import RedisSettings
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, HttpUrl
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -62,7 +64,64 @@ def _parse_redis_url(url: str) -> RedisSettings:
     )
 
 
-# ── Routes ────────────────────────────────────────────
+async def _enqueue_audit(audit_id: str) -> None:
+    """Enqueue audit pipeline — falls back to sync if Redis unavailable."""
+    try:
+        redis = await create_pool(_parse_redis_url(settings.VALKEY_URL))
+        await redis.enqueue_job("run_audit_pipeline", audit_id)
+        await redis.close()
+    except Exception:
+        from src.pipeline import run_audit_pipeline
+        await run_audit_pipeline({}, audit_id)
+
+
+# ── Public Routes (Free Tier — No Auth) ──────────────
+
+@router.post("/free", response_model=AuditResponse, status_code=201)
+async def create_free_audit(
+    request: AuditRequest,
+    session: AsyncSession = Depends(get_async_session),
+) -> AuditResult:
+    """
+    Start a free product audit — no account required.
+
+    This is the Malak demo: paste a URL, get a full AI audit.
+    Anonymous audits have no user_id attached.
+    """
+    audit = AuditResult(
+        user_id=None,
+        url=str(request.url),
+        status=AuditStatus.PENDING,
+    )
+    session.add(audit)
+    await session.flush()
+
+    await _enqueue_audit(str(audit.id))
+
+    await session.commit()
+    return audit
+
+
+@router.get("/status/{audit_id}", response_model=AuditResponse)
+async def get_audit_status(
+    audit_id: uuid.UUID,
+    session: AsyncSession = Depends(get_async_session),
+) -> AuditResult:
+    """
+    Get audit results — public endpoint, works for both free and authenticated audits.
+
+    Used by the frontend to poll for results.
+    """
+    result = await session.execute(
+        select(AuditResult).where(AuditResult.id == audit_id)
+    )
+    audit = result.scalar_one_or_none()
+    if not audit:
+        raise HTTPException(status_code=404, detail="Audit not found")
+    return audit
+
+
+# ── Authenticated Routes ─────────────────────────────
 
 @router.post("", response_model=AuditResponse, status_code=201)
 async def create_audit(
@@ -71,10 +130,9 @@ async def create_audit(
     session: AsyncSession = Depends(get_async_session),
 ) -> AuditResult:
     """
-    Start a new product listing audit.
+    Start an audit linked to your account.
 
     Returns the audit record immediately with status=pending.
-    The audit runs asynchronously through the agent pipeline.
     Poll GET /audit/{id} for results.
     """
     audit = AuditResult(
@@ -85,15 +143,7 @@ async def create_audit(
     session.add(audit)
     await session.flush()
 
-    # Enqueue the audit pipeline as a background task
-    try:
-        redis = await create_pool(_parse_redis_url(settings.VALKEY_URL))
-        await redis.enqueue_job("run_audit_pipeline", str(audit.id))
-        await redis.close()
-    except Exception:
-        # If Redis is unavailable, run synchronously (dev fallback)
-        from src.pipeline import run_audit_pipeline
-        await run_audit_pipeline({}, str(audit.id))
+    await _enqueue_audit(str(audit.id))
 
     await session.commit()
     return audit
@@ -105,7 +155,7 @@ async def get_audit(
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ) -> AuditResult:
-    """Get the results of a specific audit."""
+    """Get the results of a specific audit (owned by current user)."""
     result = await session.execute(
         select(AuditResult).where(
             AuditResult.id == audit_id,
