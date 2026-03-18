@@ -92,6 +92,13 @@ function ProductsContent() {
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
   const [imageStyle, setImageStyle] = useState("product");
   const [imagePrompt, setImagePrompt] = useState("");
+  const [uploadingImage, setUploadingImage] = useState<number | null>(null);
+  const [uploadStatus, setUploadStatus] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [editingImage, setEditingImage] = useState(false);
+  const [editImageUrl, setEditImageUrl] = useState("");
+  const [editInstructions, setEditInstructions] = useState("");
+  const [editedImage, setEditedImage] = useState<string | null>(null);
+  const [replaceIndex, setReplaceIndex] = useState<number | null>(null);
 
   /* Fetch products + stores on mount */
   useEffect(() => {
@@ -160,6 +167,13 @@ function ProductsContent() {
     setGeneratingImage(false);
     setImagePrompt("");
     setImageStyle("product");
+    setUploadingImage(null);
+    setUploadStatus(null);
+    setEditingImage(false);
+    setEditImageUrl("");
+    setEditInstructions("");
+    setEditedImage(null);
+    setReplaceIndex(null);
   };
 
   /* Close panel */
@@ -232,6 +246,50 @@ function ProductsContent() {
       alert(`Image generation failed: ${msg}`);
     } finally {
       setGeneratingImage(false);
+    }
+  };
+
+  /* Upload generated image to Shopify */
+  const handleUploadToShopify = async (imageBase64: string, index: number) => {
+    if (!selectedProduct) return;
+    setUploadingImage(index);
+    setUploadStatus(null);
+    try {
+      const res = await api.post<{ ok: boolean; message: string; shopify_image_id: number | null }>(
+        "/media/upload-image",
+        {
+          product_id: selectedProduct.id,
+          image_base64: imageBase64,
+          filename: `${selectedProduct.title || "product"}-ai-${index + 1}.png`,
+          replace_index: replaceIndex,
+        }
+      );
+      setUploadStatus({ ok: res.ok, msg: res.message });
+      setReplaceIndex(null);
+    } catch {
+      setUploadStatus({ ok: false, msg: "Upload failed. Check store connection." });
+    } finally {
+      setUploadingImage(null);
+    }
+  };
+
+  /* Edit existing image with AI */
+  const handleEditImage = async () => {
+    if (!selectedProduct || !editImageUrl || !editInstructions) return;
+    setEditingImage(true);
+    setEditedImage(null);
+    try {
+      const res = await api.post<{ image: string; prompt_used: string }>("/media/edit-image", {
+        product_id: selectedProduct.id,
+        image_url: editImageUrl,
+        instructions: editInstructions,
+      });
+      setEditedImage(res.image);
+    } catch (err: any) {
+      const msg = err?.message || err?.detail || "Unknown error";
+      alert(`Image editing failed: ${msg}`);
+    } finally {
+      setEditingImage(false);
     }
   };
 
@@ -1092,9 +1150,9 @@ function ProductsContent() {
 
                 {/* Generated images */}
                 {generatedImages.length > 0 && (
-                  <div style={{ marginTop: "16px", display: "grid", gridTemplateColumns: "1fr", gap: "12px" }}>
+                  <div style={{ marginTop: "16px", display: "flex", flexDirection: "column", gap: "12px" }}>
                     {generatedImages.map((img, i) => (
-                      <div key={i} style={{ position: "relative" }}>
+                      <div key={i}>
                         <img
                           src={`data:image/png;base64,${img}`}
                           alt={`Generated ${i + 1}`}
@@ -1104,26 +1162,263 @@ function ProductsContent() {
                             border: "1px solid #334155",
                           }}
                         />
-                        <a
-                          href={`data:image/png;base64,${img}`}
-                          download={`${selectedProduct?.title || "product"}-ai-${i + 1}.png`}
-                          style={{
-                            position: "absolute",
-                            bottom: "8px",
-                            right: "8px",
-                            background: "rgba(0,0,0,0.7)",
-                            color: "#fff",
-                            padding: "6px 12px",
-                            borderRadius: "6px",
-                            fontSize: "12px",
-                            fontWeight: 600,
-                            textDecoration: "none",
-                          }}
-                        >
-                          Download
-                        </a>
+                        {/* Image action buttons */}
+                        <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+                          <a
+                            href={`data:image/png;base64,${img}`}
+                            download={`${selectedProduct?.title || "product"}-ai-${i + 1}.png`}
+                            style={{
+                              flex: 1,
+                              background: "#1a1a2e",
+                              border: "1px solid #334155",
+                              borderRadius: "6px",
+                              color: "#94a3b8",
+                              padding: "8px 0",
+                              fontSize: "12px",
+                              fontWeight: 600,
+                              textDecoration: "none",
+                              textAlign: "center",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Download
+                          </a>
+                          <button
+                            onClick={() => handleUploadToShopify(img, i)}
+                            disabled={uploadingImage === i}
+                            style={{
+                              flex: 2,
+                              background: uploadingImage === i
+                                ? "#334155"
+                                : "linear-gradient(135deg, #96bf48, #5e8e3e)",
+                              border: "none",
+                              borderRadius: "6px",
+                              color: "#fff",
+                              padding: "8px 0",
+                              fontSize: "12px",
+                              fontWeight: 600,
+                              cursor: uploadingImage === i ? "not-allowed" : "pointer",
+                            }}
+                          >
+                            {uploadingImage === i ? "Uploading..." : "Upload to Shopify"}
+                          </button>
+                        </div>
+                        {/* Replace existing image selector */}
+                        <div style={{ marginTop: "6px" }}>
+                          <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "11px", color: "#64748b" }}>
+                            <input
+                              type="checkbox"
+                              checked={replaceIndex !== null}
+                              onChange={(e) => setReplaceIndex(e.target.checked ? 0 : null)}
+                              style={{ accentColor: "#e94560" }}
+                            />
+                            Replace existing image at position:
+                            {replaceIndex !== null && (
+                              <input
+                                type="number"
+                                min={0}
+                                value={replaceIndex}
+                                onChange={(e) => setReplaceIndex(parseInt(e.target.value) || 0)}
+                                style={{
+                                  width: "48px",
+                                  background: "#1a1a2e",
+                                  border: "1px solid #334155",
+                                  borderRadius: "4px",
+                                  color: "#f1f5f9",
+                                  padding: "2px 6px",
+                                  fontSize: "11px",
+                                  textAlign: "center",
+                                }}
+                              />
+                            )}
+                          </label>
+                        </div>
                       </div>
                     ))}
+
+                    {/* Upload status */}
+                    {uploadStatus && (
+                      <div
+                        style={{
+                          background: uploadStatus.ok ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
+                          border: `1px solid ${uploadStatus.ok ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`,
+                          borderRadius: "8px",
+                          padding: "10px 14px",
+                          color: uploadStatus.ok ? "#86efac" : "#fca5a5",
+                          fontSize: "13px",
+                          textAlign: "center",
+                        }}
+                      >
+                        {uploadStatus.msg}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* ── AI Image Editing ───────────────────────── */}
+              <div
+                style={{
+                  background: "#16162a",
+                  borderRadius: "12px",
+                  border: "1px solid #1e293b",
+                  padding: "20px",
+                }}
+              >
+                <h4
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: 700,
+                    color: "#94a3b8",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                    marginBottom: "16px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                  }}
+                >
+                  <span style={{ fontSize: "16px" }}>&#9999;&#65039;</span>
+                  Edit Existing Image
+                </h4>
+
+                <label style={{ display: "block", fontSize: "12px", color: "#64748b", marginBottom: "6px" }}>
+                  Image URL (paste a product image URL)
+                </label>
+                <input
+                  type="text"
+                  value={editImageUrl}
+                  onChange={(e) => setEditImageUrl(e.target.value)}
+                  placeholder={selectedProduct?.image || "https://cdn.shopify.com/..."}
+                  style={{
+                    width: "100%",
+                    background: "#1a1a2e",
+                    border: "1px solid #334155",
+                    borderRadius: "8px",
+                    color: "#f1f5f9",
+                    padding: "10px 12px",
+                    fontSize: "13px",
+                    outline: "none",
+                    fontFamily: "inherit",
+                    boxSizing: "border-box",
+                    marginBottom: "10px",
+                  }}
+                />
+                {selectedProduct?.image && !editImageUrl && (
+                  <button
+                    onClick={() => setEditImageUrl(selectedProduct.image || "")}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: "#e94560",
+                      fontSize: "12px",
+                      cursor: "pointer",
+                      padding: "0",
+                      marginBottom: "10px",
+                    }}
+                  >
+                    Use current product image
+                  </button>
+                )}
+
+                <label style={{ display: "block", fontSize: "12px", color: "#64748b", marginBottom: "6px" }}>
+                  Edit instructions
+                </label>
+                <input
+                  type="text"
+                  value={editInstructions}
+                  onChange={(e) => setEditInstructions(e.target.value)}
+                  placeholder="e.g. Remove background, add shadow, change color to blue..."
+                  style={{
+                    width: "100%",
+                    background: "#1a1a2e",
+                    border: "1px solid #334155",
+                    borderRadius: "8px",
+                    color: "#f1f5f9",
+                    padding: "10px 12px",
+                    fontSize: "13px",
+                    outline: "none",
+                    fontFamily: "inherit",
+                    boxSizing: "border-box",
+                    marginBottom: "12px",
+                  }}
+                />
+
+                <button
+                  onClick={handleEditImage}
+                  disabled={editingImage || !editImageUrl || !editInstructions}
+                  style={{
+                    width: "100%",
+                    background:
+                      editingImage || !editImageUrl || !editInstructions
+                        ? "#334155"
+                        : "linear-gradient(135deg, #f59e0b, #d97706)",
+                    border: "none",
+                    borderRadius: "8px",
+                    color: "#fff",
+                    padding: "10px 0",
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    cursor:
+                      editingImage || !editImageUrl || !editInstructions
+                        ? "not-allowed"
+                        : "pointer",
+                  }}
+                >
+                  {editingImage ? "Editing with AI..." : "Edit Image"}
+                </button>
+
+                {/* Edited image result */}
+                {editedImage && (
+                  <div style={{ marginTop: "16px" }}>
+                    <img
+                      src={`data:image/png;base64,${editedImage}`}
+                      alt="Edited"
+                      style={{
+                        width: "100%",
+                        borderRadius: "8px",
+                        border: "1px solid #334155",
+                      }}
+                    />
+                    <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+                      <a
+                        href={`data:image/png;base64,${editedImage}`}
+                        download={`${selectedProduct?.title || "product"}-edited.png`}
+                        style={{
+                          flex: 1,
+                          background: "#1a1a2e",
+                          border: "1px solid #334155",
+                          borderRadius: "6px",
+                          color: "#94a3b8",
+                          padding: "8px 0",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          textDecoration: "none",
+                          textAlign: "center",
+                        }}
+                      >
+                        Download
+                      </a>
+                      <button
+                        onClick={() => handleUploadToShopify(editedImage, 99)}
+                        disabled={uploadingImage === 99}
+                        style={{
+                          flex: 2,
+                          background: uploadingImage === 99
+                            ? "#334155"
+                            : "linear-gradient(135deg, #96bf48, #5e8e3e)",
+                          border: "none",
+                          borderRadius: "6px",
+                          color: "#fff",
+                          padding: "8px 0",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          cursor: uploadingImage === 99 ? "not-allowed" : "pointer",
+                        }}
+                      >
+                        {uploadingImage === 99 ? "Uploading..." : "Upload to Shopify"}
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
