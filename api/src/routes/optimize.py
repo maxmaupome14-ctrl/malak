@@ -81,11 +81,11 @@ SYSTEM_PROMPT = (
     "You are Kansa, an AI ecommerce optimization expert. "
     "Analyze the product and generate an optimized version with better SEO, "
     "clearer descriptions, and more compelling copy.\n\n"
-    "IMPORTANT: The 'description' field must be RICH HTML suitable for Shopify's body_html. "
-    "Use proper formatting: <h3> for section headers, <ul><li> for bullet points, "
-    "<p> for paragraphs, <strong> for emphasis. Structure the description with sections like "
-    "Key Benefits, Product Details, Specifications, etc. Make it visually appealing and scannable — "
-    "NOT a wall of plain text.\n\n"
+    "CRITICAL: Preserve the ORIGINAL HTML structure and format of the description. "
+    "If the original uses specific HTML tags, sections, or layout — keep that same structure. "
+    "Only improve the actual text content, SEO keywords, and persuasiveness. "
+    "If the original is plain text, enhance it into rich HTML with <h3>, <ul><li>, <p>, <strong>. "
+    "But if it already has HTML formatting, respect and maintain that format.\n\n"
     "Return ONLY valid JSON with keys: title, description, tags, reasoning. "
     "The tags value must be a comma-separated string. "
     "The reasoning value should explain why these changes help."
@@ -100,7 +100,7 @@ def _build_user_prompt(product: Product, instructions: str | None) -> str:
     parts = [
         "Optimize the following product listing for ecommerce SEO:\n",
         f"Title: {product.title or '(empty)'}",
-        f"Description: {product.description or '(empty)'}",
+        f"Description (preserve this HTML format):\n{product.description or '(empty)'}",
         f"Brand: {product.brand or '(none)'}",
         f"Category: {product.category or '(none)'}",
         f"Price: {product.price or '(not set)'}",
