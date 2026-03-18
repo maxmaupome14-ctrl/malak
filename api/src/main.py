@@ -35,6 +35,17 @@ from src.routes.shopify_billing import router as shopify_billing_router
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Application startup and shutdown events."""
+    # Auto-run migrations on startup (needed for Render free tier with no shell)
+    if settings.is_production:
+        import subprocess
+        result = subprocess.run(
+            ["alembic", "upgrade", "head"],
+            capture_output=True, text=True,
+        )
+        if result.returncode == 0:
+            print("[BOOT] Database migrations applied successfully")
+        else:
+            print(f"[BOOT] Migration warning: {result.stderr[:200]}")
     print(f"[BOOT] Shopify OAuth configured: {'YES' if settings.SHOPIFY_CLIENT_ID else 'NO'}")
     yield
 
