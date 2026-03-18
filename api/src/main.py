@@ -35,17 +35,22 @@ from src.routes.shopify_billing import router as shopify_billing_router
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Application startup and shutdown events."""
-    # Auto-run migrations on startup (needed for Render free tier with no shell)
+    # Create all tables on startup (needed for Render free tier with no shell)
     if settings.is_production:
-        import subprocess
-        result = subprocess.run(
-            ["alembic", "upgrade", "head"],
-            capture_output=True, text=True,
-        )
-        if result.returncode == 0:
-            print("[BOOT] Database migrations applied successfully")
-        else:
-            print(f"[BOOT] Migration warning: {result.stderr[:200]}")
+        from src.database import engine, Base
+        # Import all models so they register with Base.metadata
+        from src.auth.models import User  # noqa: F401
+        from src.models.store import Store  # noqa: F401
+        from src.models.product import Product  # noqa: F401
+        from src.models.audit import AuditResult  # noqa: F401
+        from src.models.optimization import Optimization  # noqa: F401
+
+        try:
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+            print("[BOOT] Database tables created/verified successfully")
+        except Exception as e:
+            print(f"[BOOT] Database setup warning: {str(e)[:200]}")
     print(f"[BOOT] Shopify OAuth configured: {'YES' if settings.SHOPIFY_CLIENT_ID else 'NO'}")
     yield
 
