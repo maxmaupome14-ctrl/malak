@@ -50,7 +50,9 @@ class AuditResult(Base):
     # ── Input ────────────────────────────────────────
     url: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[AuditStatus] = mapped_column(
-        Enum(AuditStatus), default=AuditStatus.PENDING, nullable=False
+        Enum(AuditStatus, values_callable=lambda e: [m.value for m in e]),
+        default=AuditStatus.PENDING,
+        nullable=False,
     )
 
     # ── Scores ───────────────────────────────────────

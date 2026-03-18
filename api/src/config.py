@@ -5,16 +5,20 @@ All values are read from environment variables or a .env file.
 """
 
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Resolve .env relative to the project root (api/), not cwd
+_ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
+
 
 class Settings(BaseSettings):
-    """Malak API configuration."""
+    """Kansa API configuration."""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(_ENV_FILE),
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
@@ -39,6 +43,10 @@ class Settings(BaseSettings):
     OPENAI_BASE_URL: str | None = None
     ANTHROPIC_API_KEY: str | None = None
 
+    # ── Shopify ─────────────────────────────────────
+    SHOPIFY_CLIENT_ID: str = ""
+    SHOPIFY_CLIENT_SECRET: str = ""
+
     # ── Scraping ─────────────────────────────────────
     BROWSER_TYPE: str = "chromium"
     BROWSER_HEADLESS: bool = True
@@ -55,6 +63,13 @@ class Settings(BaseSettings):
     SMTP_USER: str | None = None
     SMTP_PASSWORD: str | None = None
     FROM_EMAIL: str = "noreply@malak.ai"
+
+    # ── Stripe Billing ─────────────────────────────────
+    STRIPE_SECRET_KEY: str = ""
+    STRIPE_PUBLISHABLE_KEY: str = ""
+    STRIPE_WEBHOOK_SECRET: str = ""
+    STRIPE_PRICE_MONTHLY: str = ""
+    STRIPE_PRICE_LIFETIME: str = ""
 
     # ── Monitoring ───────────────────────────────────
     SENTRY_DSN: str | None = None

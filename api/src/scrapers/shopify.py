@@ -125,7 +125,7 @@ class ShopifyScraper(BaseScraper):
         # Try the JSON API first — fast and structured.
         try:
             return await self._scrape_json(url, base_url, handle)
-        except (ScrapingError, httpx.HTTPStatusError, KeyError):
+        except Exception:
             pass
 
         # Fallback: fetch the actual product page and parse the HTML.
@@ -143,7 +143,8 @@ class ShopifyScraper(BaseScraper):
         async with httpx.AsyncClient(
             headers={"User-Agent": _USER_AGENT},
             follow_redirects=True,
-            timeout=15.0,
+            timeout=30.0,
+            transport=httpx.AsyncHTTPTransport(local_address="0.0.0.0"),
         ) as client:
             resp = await client.get(json_url)
             resp.raise_for_status()
@@ -224,7 +225,8 @@ class ShopifyScraper(BaseScraper):
         async with httpx.AsyncClient(
             headers={"User-Agent": _USER_AGENT},
             follow_redirects=True,
-            timeout=20.0,
+            timeout=30.0,
+            transport=httpx.AsyncHTTPTransport(local_address="0.0.0.0"),
         ) as client:
             resp = await client.get(product_url)
             if resp.status_code >= 400:

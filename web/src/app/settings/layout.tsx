@@ -1,6 +1,6 @@
 import AppSidebar from "@/components/app-sidebar";
 
-export default function DashboardLayout({
+export default function SettingsLayout({
   children,
 }: {
   children: React.ReactNode;

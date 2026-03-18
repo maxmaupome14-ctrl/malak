@@ -34,7 +34,7 @@ export async function register(email: string, password: string): Promise<User> {
 export async function login(email: string, password: string): Promise<User> {
   // FastAPI-Users expects form-encoded login
   const response = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL || ""}/auth/jwt/login`,
+    `${process.env.NEXT_PUBLIC_API_URL || ""}/auth/login`,
     {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -43,7 +43,15 @@ export async function login(email: string, password: string): Promise<User> {
   );
 
   if (!response.ok) {
-    throw new ApiError(response.status, "Invalid credentials");
+    const errorBody = await response.json().catch(() => ({}));
+    const detail = errorBody.detail || "Invalid credentials";
+    const message =
+      detail === "LOGIN_BAD_CREDENTIALS"
+        ? "Invalid email or password"
+        : typeof detail === "string"
+          ? detail
+          : "Login failed";
+    throw new ApiError(response.status, message);
   }
 
   const data: AuthResponse = await response.json();
@@ -51,6 +59,9 @@ export async function login(email: string, password: string): Promise<User> {
 
   // Fetch and cache user profile
   const user = await getMe();
+  if (!user) {
+    throw new ApiError(401, "Failed to fetch user profile after login");
+  }
   return user;
 }
 
@@ -65,11 +76,20 @@ export function logout(): void {
 
 /**
  * Get the current authenticated user.
+ * Returns null and clears token if the request fails (e.g. expired/invalid token).
  */
-export async function getMe(): Promise<User> {
-  const user = await api.get<User>("/users/me");
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
-  return user;
+export async function getMe(): Promise<User | null> {
+  try {
+    const user = await api.get<User>("/users/me");
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+    return user;
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
+    }
+    return null;
+  }
 }
 
 /**

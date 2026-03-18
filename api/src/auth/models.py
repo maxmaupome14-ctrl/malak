@@ -6,7 +6,7 @@ Uses fastapi-users SQLAlchemy integration.
 from datetime import datetime
 
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID
-from sqlalchemy import DateTime, String, func
+from sqlalchemy import DateTime, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.database import Base
@@ -30,6 +30,16 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     # Additional fields beyond what fastapi-users provides
     display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     company_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    # BYOK — user's own API keys (stored encrypted in prod)
+    openai_api_key: Mapped[str | None] = mapped_column(Text, nullable=True)
+    anthropic_api_key: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Billing / Stripe
+    stripe_customer_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    subscription_status: Mapped[str | None] = mapped_column(Text, nullable=True)
+    subscription_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    plan_type: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

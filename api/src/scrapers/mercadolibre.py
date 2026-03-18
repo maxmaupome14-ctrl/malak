@@ -100,6 +100,7 @@ class MercadoLibreScraper(BaseScraper):
             timeout=15.0,
             follow_redirects=True,
             headers={"User-Agent": "Mozilla/5.0 (compatible; MalakBot/1.0)"},
+            transport=httpx.AsyncHTTPTransport(local_address="0.0.0.0"),
         ) as client:
             # Fetch item data from API
             item_response = await client.get(f"{self.API_BASE}/items/{item_id}")

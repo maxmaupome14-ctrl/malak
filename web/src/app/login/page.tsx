@@ -1,21 +1,42 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { login, register } from "@/lib/auth";
+import { ApiError } from "@/lib/api";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isRegister, setIsRegister] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    // TODO: Call auth API
-    // if (isRegister) await api.post("/auth/register", { email, password });
-    // else await api.post("/auth/login", { email, password });
-    setTimeout(() => setLoading(false), 1000); // Placeholder
+    setError(null);
+
+    try {
+      if (isRegister) {
+        // Register then auto-login
+        await register(email, password);
+        await login(email, password);
+      } else {
+        await login(email, password);
+      }
+      router.push("/dashboard");
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError("Something went wrong. Please try again.");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -54,10 +75,10 @@ export default function LoginPage() {
                 color: "white",
               }}
             >
-              M
+              K
             </div>
             <span style={{ fontSize: "22px", fontWeight: 700, color: "#f1f5f9" }}>
-              Malak AI
+              Kansa
             </span>
           </Link>
         </div>
@@ -77,8 +98,24 @@ export default function LoginPage() {
           <p style={{ color: "#94a3b8", fontSize: "14px", marginBottom: "28px" }}>
             {isRegister
               ? "Start optimizing your ecommerce listings with AI."
-              : "Sign in to your Malak AI account."}
+              : "Sign in to your Kansa account."}
           </p>
+
+          {error && (
+            <div
+              style={{
+                background: "rgba(239, 68, 68, 0.1)",
+                border: "1px solid rgba(239, 68, 68, 0.3)",
+                borderRadius: "8px",
+                padding: "12px 16px",
+                marginBottom: "20px",
+                color: "#fca5a5",
+                fontSize: "13px",
+              }}
+            >
+              {error}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit}>
             <div style={{ marginBottom: "16px" }}>
@@ -118,7 +155,7 @@ export default function LoginPage() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                placeholder="--------"
                 className="input"
                 required
                 minLength={8}
@@ -128,10 +165,12 @@ export default function LoginPage() {
               type="submit"
               disabled={loading}
               className="btn-primary"
-              style={{ width: "100%", padding: "12px" }}
+              style={{ width: "100%", padding: "12px", opacity: loading ? 0.7 : 1 }}
             >
               {loading
-                ? "Loading..."
+                ? isRegister
+                  ? "Creating account..."
+                  : "Signing in..."
                 : isRegister
                   ? "Create Account"
                   : "Sign In"}
@@ -148,7 +187,10 @@ export default function LoginPage() {
           >
             {isRegister ? "Already have an account?" : "Don't have an account?"}{" "}
             <button
-              onClick={() => setIsRegister(!isRegister)}
+              onClick={() => {
+                setIsRegister(!isRegister);
+                setError(null);
+              }}
               style={{
                 background: "none",
                 border: "none",

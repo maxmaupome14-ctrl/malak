@@ -1,0 +1,942 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import AuthGuard from "@/components/auth-guard";
+import { api } from "@/lib/api";
+
+/* ------------------------------------------------------------------ */
+/*  Types                                                              */
+/* ------------------------------------------------------------------ */
+
+interface Product {
+  id: string;
+  title: string;
+  brand: string | null;
+  price: number | null;
+  image: string | null;
+  platform: string;
+  overall_score: number | null;
+}
+
+interface OptimizeResult {
+  original: { title: string; description: string; tags: string };
+  optimized: { title: string; description: string; tags: string };
+  reasoning: string;
+}
+
+interface ConnectedStore {
+  id: string;
+  name: string;
+  platform: string;
+  store_url: string | null;
+  is_connected: boolean;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Helpers                                                            */
+/* ------------------------------------------------------------------ */
+
+function scoreColor(score: number | null): string {
+  if (score === null) return "#64748b";
+  if (score >= 75) return "#22c55e";
+  if (score >= 50) return "#f59e0b";
+  return "#ef4444";
+}
+
+function scoreBg(score: number | null): string {
+  if (score === null) return "#1e293b";
+  if (score >= 75) return "rgba(34,197,94,0.15)";
+  if (score >= 50) return "rgba(245,158,11,0.15)";
+  return "rgba(239,68,68,0.15)";
+}
+
+function platformBadge(platform: string): { bg: string; label: string } {
+  switch (platform.toLowerCase()) {
+    case "shopify":
+      return { bg: "linear-gradient(135deg, #96bf48, #5e8e3e)", label: "Shopify" };
+    case "amazon":
+      return { bg: "linear-gradient(135deg, #ff9900, #e47911)", label: "Amazon" };
+    default:
+      return { bg: "linear-gradient(135deg, #64748b, #475569)", label: platform };
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Products Content                                                   */
+/* ------------------------------------------------------------------ */
+
+function ProductsContent() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [stores, setStores] = useState<ConnectedStore[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState("");
+
+  // Optimize panel state
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [instructions, setInstructions] = useState("");
+  const [generating, setGenerating] = useState(false);
+  const [result, setResult] = useState<OptimizeResult | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editedTitle, setEditedTitle] = useState("");
+  const [editedDescription, setEditedDescription] = useState("");
+  const [editedTags, setEditedTags] = useState("");
+  const [pushing, setPushing] = useState(false);
+  const [pushStatus, setPushStatus] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  /* Fetch products + stores on mount */
+  useEffect(() => {
+    Promise.all([
+      api.get<Product[]>("/products").catch(() => [] as Product[]),
+      api.get<ConnectedStore[]>("/stores").catch(() => [] as ConnectedStore[]),
+    ]).then(([p, s]) => {
+      setProducts(p);
+      setStores(s);
+      setLoading(false);
+    });
+  }, []);
+
+  /* Sync products */
+  const handleSync = async () => {
+    const activeStore = stores.find((s) => s.is_connected);
+    if (!activeStore) return;
+    setSyncing(true);
+    setSyncMsg("");
+    try {
+      const res = await api.post<{ imported: number; updated: number }>(
+        `/products/sync/${activeStore.id}`,
+        {}
+      );
+      setSyncMsg(`Synced: ${res.imported} imported, ${res.updated} updated`);
+      // Refresh products
+      const fresh = await api.get<Product[]>("/products").catch(() => [] as Product[]);
+      setProducts(fresh);
+    } catch {
+      setSyncMsg("Sync failed. Check store connection.");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  /* Open optimize panel */
+  const openOptimize = (product: Product) => {
+    setSelectedProduct(product);
+    setInstructions("");
+    setResult(null);
+    setEditMode(false);
+    setPushStatus(null);
+    setGenerating(false);
+    setPushing(false);
+  };
+
+  /* Close panel */
+  const closePanel = () => {
+    setSelectedProduct(null);
+    setResult(null);
+    setEditMode(false);
+    setPushStatus(null);
+  };
+
+  /* Generate optimization */
+  const handleGenerate = async () => {
+    if (!selectedProduct) return;
+    setGenerating(true);
+    setResult(null);
+    setPushStatus(null);
+    try {
+      const res = await api.post<OptimizeResult>("/optimize/generate", {
+        product_id: selectedProduct.id,
+        instructions: instructions || undefined,
+      });
+      setResult(res);
+      setEditedTitle(res.optimized.title);
+      setEditedDescription(res.optimized.description);
+      setEditedTags(res.optimized.tags);
+      setEditMode(false);
+    } catch {
+      setResult(null);
+      alert("Optimization failed. Try again.");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  /* Push to Shopify */
+  const handlePush = async () => {
+    if (!selectedProduct || !result) return;
+    setPushing(true);
+    setPushStatus(null);
+    try {
+      await api.post("/optimize/push", {
+        product_id: selectedProduct.id,
+        title: editMode ? editedTitle : result.optimized.title,
+        description: editMode ? editedDescription : result.optimized.description,
+        tags: editMode ? editedTags : result.optimized.tags,
+      });
+      setPushStatus({ ok: true, msg: "Pushed to Shopify successfully!" });
+    } catch {
+      setPushStatus({ ok: false, msg: "Push failed. Check your store connection." });
+    } finally {
+      setPushing(false);
+    }
+  };
+
+  const activeStore = stores.find((s) => s.is_connected);
+
+  return (
+    <div style={{ position: "relative" }}>
+      {/* Header */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          marginBottom: "32px",
+        }}
+      >
+        <div>
+          <h1 style={{ fontSize: "28px", fontWeight: 700, color: "#f1f5f9" }}>
+            Products
+          </h1>
+          <p style={{ color: "#94a3b8", marginTop: "8px", fontSize: "15px" }}>
+            Manage, optimize, and push AI-enhanced listings.
+          </p>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          {syncMsg && (
+            <span
+              style={{
+                fontSize: "12px",
+                color: syncMsg.includes("failed") ? "#ef4444" : "#22c55e",
+              }}
+            >
+              {syncMsg}
+            </span>
+          )}
+          <button
+            onClick={handleSync}
+            disabled={syncing || !activeStore}
+            style={{
+              background: syncing ? "#334155" : "#e94560",
+              border: "none",
+              borderRadius: "8px",
+              color: "#fff",
+              padding: "10px 20px",
+              fontSize: "14px",
+              fontWeight: 600,
+              cursor: syncing || !activeStore ? "not-allowed" : "pointer",
+              opacity: !activeStore ? 0.5 : 1,
+            }}
+          >
+            {syncing ? "Syncing..." : "Sync Products"}
+          </button>
+        </div>
+      </div>
+
+      {/* Loading */}
+      {loading && (
+        <div style={{ textAlign: "center", padding: "80px 20px", color: "#64748b" }}>
+          <p style={{ fontSize: "15px" }}>Loading products...</p>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!loading && products.length === 0 && (
+        <div
+          style={{
+            textAlign: "center",
+            padding: "80px 20px",
+            color: "#64748b",
+            background: "#16162a",
+            borderRadius: "12px",
+            border: "1px solid #1e293b",
+          }}
+        >
+          <p style={{ fontSize: "48px", marginBottom: "16px" }}>&#128230;</p>
+          <p style={{ fontSize: "18px", color: "#94a3b8", marginBottom: "8px" }}>
+            No products yet
+          </p>
+          <p style={{ fontSize: "14px", marginBottom: "20px" }}>
+            Connect a store and sync your products to get started.
+          </p>
+          {activeStore && (
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              style={{
+                background: "#e94560",
+                border: "none",
+                borderRadius: "8px",
+                color: "#fff",
+                padding: "10px 24px",
+                fontSize: "14px",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              {syncing ? "Syncing..." : "Sync Now"}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Products grid */}
+      {!loading && products.length > 0 && (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+            gap: "20px",
+          }}
+        >
+          {products.map((product) => {
+            const badge = platformBadge(product.platform);
+            return (
+              <div
+                key={product.id}
+                style={{
+                  background: "#16162a",
+                  borderRadius: "12px",
+                  border: "1px solid #1e293b",
+                  padding: "0",
+                  overflow: "hidden",
+                  display: "flex",
+                  flexDirection: "column",
+                  transition: "border-color 0.15s",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLDivElement).style.borderColor = "#334155";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLDivElement).style.borderColor = "#1e293b";
+                }}
+              >
+                {/* Image — clickable to detail page */}
+                <Link
+                  href={`/products/${product.id}`}
+                  style={{ textDecoration: "none", display: "block" }}
+                >
+                  <div
+                    style={{
+                      width: "100%",
+                      height: "200px",
+                      background: "#0f0f23",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      overflow: "hidden",
+                      position: "relative",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {product.image ? (
+                      <img
+                        src={product.image}
+                        alt={product.title}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                        }}
+                      />
+                    ) : (
+                      <span style={{ fontSize: "48px", color: "#334155" }}>&#128247;</span>
+                    )}
+                    {/* Platform badge */}
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "10px",
+                        right: "10px",
+                        background: badge.bg,
+                        borderRadius: "6px",
+                        padding: "4px 10px",
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        color: "#fff",
+                        letterSpacing: "0.3px",
+                      }}
+                    >
+                      {badge.label}
+                    </div>
+                  </div>
+                </Link>
+
+                {/* Info */}
+                <div style={{ padding: "20px", flex: 1, display: "flex", flexDirection: "column" }}>
+                  <Link
+                    href={`/products/${product.id}`}
+                    style={{ textDecoration: "none" }}
+                  >
+                    <h3
+                      style={{
+                        fontSize: "15px",
+                        fontWeight: 600,
+                        color: "#f1f5f9",
+                        marginBottom: "6px",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        display: "-webkit-box",
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: "vertical",
+                        lineHeight: "1.4",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {product.title}
+                    </h3>
+                  </Link>
+
+                  {product.brand && (
+                    <p style={{ fontSize: "12px", color: "#64748b", marginBottom: "8px" }}>
+                      {product.brand}
+                    </p>
+                  )}
+
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      marginTop: "auto",
+                      paddingTop: "12px",
+                    }}
+                  >
+                    {/* Price */}
+                    <span style={{ fontSize: "18px", fontWeight: 700, color: "#f1f5f9" }}>
+                      {product.price !== null ? `$${product.price.toFixed(2)}` : "--"}
+                    </span>
+
+                    {/* Score */}
+                    {product.overall_score !== null && (
+                      <div
+                        style={{
+                          background: scoreBg(product.overall_score),
+                          borderRadius: "8px",
+                          padding: "4px 10px",
+                          fontSize: "13px",
+                          fontWeight: 700,
+                          color: scoreColor(product.overall_score),
+                        }}
+                      >
+                        {Math.round(product.overall_score)}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Optimize button */}
+                  <button
+                    onClick={() => openOptimize(product)}
+                    style={{
+                      marginTop: "16px",
+                      width: "100%",
+                      background: "rgba(233, 69, 96, 0.1)",
+                      border: "1px solid rgba(233, 69, 96, 0.3)",
+                      borderRadius: "8px",
+                      color: "#e94560",
+                      padding: "10px 0",
+                      fontSize: "14px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      transition: "background 0.15s",
+                    }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLButtonElement).style.background =
+                        "rgba(233, 69, 96, 0.2)";
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLButtonElement).style.background =
+                        "rgba(233, 69, 96, 0.1)";
+                    }}
+                  >
+                    Optimize
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/*  Optimize Slide-Over Panel                                    */}
+      {/* ============================================================ */}
+      {selectedProduct && (
+        <>
+          {/* Overlay */}
+          <div
+            onClick={closePanel}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.5)",
+              zIndex: 998,
+            }}
+          />
+
+          {/* Panel */}
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              right: 0,
+              width: "560px",
+              maxWidth: "100vw",
+              height: "100vh",
+              background: "#0f0f23",
+              borderLeft: "1px solid #1e293b",
+              zIndex: 999,
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+            }}
+          >
+            {/* Panel header */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "20px 24px",
+                borderBottom: "1px solid #1e293b",
+                flexShrink: 0,
+              }}
+            >
+              <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#f1f5f9" }}>
+                Optimize Listing
+              </h2>
+              <button
+                onClick={closePanel}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#64748b",
+                  fontSize: "24px",
+                  cursor: "pointer",
+                  padding: "0 4px",
+                  lineHeight: 1,
+                }}
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* Panel body (scrollable) */}
+            <div
+              style={{
+                flex: 1,
+                overflowY: "auto",
+                padding: "24px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "20px",
+              }}
+            >
+              {/* Current product info */}
+              <div
+                style={{
+                  background: "#16162a",
+                  borderRadius: "12px",
+                  border: "1px solid #1e293b",
+                  padding: "20px",
+                }}
+              >
+                <div style={{ display: "flex", gap: "16px", alignItems: "flex-start" }}>
+                  {selectedProduct.image ? (
+                    <img
+                      src={selectedProduct.image}
+                      alt={selectedProduct.title}
+                      style={{
+                        width: "80px",
+                        height: "80px",
+                        borderRadius: "8px",
+                        objectFit: "cover",
+                        flexShrink: 0,
+                      }}
+                    />
+                  ) : (
+                    <div
+                      style={{
+                        width: "80px",
+                        height: "80px",
+                        borderRadius: "8px",
+                        background: "#1a1a2e",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "32px",
+                        color: "#334155",
+                        flexShrink: 0,
+                      }}
+                    >
+                      &#128247;
+                    </div>
+                  )}
+                  <div style={{ minWidth: 0 }}>
+                    <h3
+                      style={{
+                        fontSize: "15px",
+                        fontWeight: 600,
+                        color: "#f1f5f9",
+                        marginBottom: "4px",
+                      }}
+                    >
+                      {selectedProduct.title}
+                    </h3>
+                    {selectedProduct.brand && (
+                      <p style={{ fontSize: "13px", color: "#64748b", marginBottom: "4px" }}>
+                        {selectedProduct.brand}
+                      </p>
+                    )}
+                    <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                      {selectedProduct.price !== null && (
+                        <span style={{ fontSize: "14px", fontWeight: 600, color: "#94a3b8" }}>
+                          ${selectedProduct.price.toFixed(2)}
+                        </span>
+                      )}
+                      <span
+                        style={{
+                          background: platformBadge(selectedProduct.platform).bg,
+                          borderRadius: "4px",
+                          padding: "2px 8px",
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          color: "#fff",
+                        }}
+                      >
+                        {platformBadge(selectedProduct.platform).label}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Custom instructions input */}
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    color: "#94a3b8",
+                    marginBottom: "8px",
+                  }}
+                >
+                  Custom Instructions (optional)
+                </label>
+                <textarea
+                  value={instructions}
+                  onChange={(e) => setInstructions(e.target.value)}
+                  placeholder="e.g. Focus on SEO keywords, make it more premium, emphasize sustainability..."
+                  rows={3}
+                  style={{
+                    width: "100%",
+                    background: "#1a1a2e",
+                    border: "1px solid #334155",
+                    borderRadius: "8px",
+                    color: "#f1f5f9",
+                    padding: "12px",
+                    fontSize: "14px",
+                    resize: "vertical",
+                    outline: "none",
+                    fontFamily: "inherit",
+                    boxSizing: "border-box",
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = "#e94560";
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = "#334155";
+                  }}
+                />
+              </div>
+
+              {/* Generate button */}
+              <button
+                onClick={handleGenerate}
+                disabled={generating}
+                style={{
+                  background: generating ? "#334155" : "#e94560",
+                  border: "none",
+                  borderRadius: "8px",
+                  color: "#fff",
+                  padding: "12px 0",
+                  fontSize: "15px",
+                  fontWeight: 600,
+                  cursor: generating ? "not-allowed" : "pointer",
+                  width: "100%",
+                }}
+              >
+                {generating ? "Generating..." : "Generate Optimization"}
+              </button>
+
+              {/* Loading state */}
+              {generating && (
+                <div
+                  style={{
+                    textAlign: "center",
+                    padding: "32px 0",
+                    color: "#94a3b8",
+                    fontSize: "14px",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "32px",
+                      height: "32px",
+                      border: "3px solid #334155",
+                      borderTop: "3px solid #e94560",
+                      borderRadius: "50%",
+                      margin: "0 auto 16px",
+                      animation: "spin 1s linear infinite",
+                    }}
+                  />
+                  <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                  AI is analyzing and optimizing your listing...
+                </div>
+              )}
+
+              {/* Results */}
+              {result && !generating && (
+                <>
+                  {/* Diff sections */}
+                  {(["title", "description", "tags"] as const).map((field) => (
+                    <div
+                      key={field}
+                      style={{
+                        background: "#16162a",
+                        borderRadius: "12px",
+                        border: "1px solid #1e293b",
+                        padding: "20px",
+                      }}
+                    >
+                      <h4
+                        style={{
+                          fontSize: "13px",
+                          fontWeight: 700,
+                          color: "#94a3b8",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.5px",
+                          marginBottom: "12px",
+                        }}
+                      >
+                        {field}
+                      </h4>
+
+                      {/* Original */}
+                      <div style={{ marginBottom: "12px" }}>
+                        <span
+                          style={{
+                            display: "inline-block",
+                            fontSize: "11px",
+                            fontWeight: 600,
+                            color: "#ef4444",
+                            background: "rgba(239,68,68,0.1)",
+                            borderRadius: "4px",
+                            padding: "2px 8px",
+                            marginBottom: "6px",
+                          }}
+                        >
+                          ORIGINAL
+                        </span>
+                        <p
+                          style={{
+                            fontSize: "13px",
+                            color: "#64748b",
+                            lineHeight: "1.5",
+                            whiteSpace: "pre-wrap",
+                            wordBreak: "break-word",
+                          }}
+                        >
+                          {result.original[field] || "(empty)"}
+                        </p>
+                      </div>
+
+                      {/* Optimized */}
+                      <div>
+                        <span
+                          style={{
+                            display: "inline-block",
+                            fontSize: "11px",
+                            fontWeight: 600,
+                            color: "#22c55e",
+                            background: "rgba(34,197,94,0.1)",
+                            borderRadius: "4px",
+                            padding: "2px 8px",
+                            marginBottom: "6px",
+                          }}
+                        >
+                          OPTIMIZED
+                        </span>
+                        {editMode ? (
+                          <textarea
+                            value={
+                              field === "title"
+                                ? editedTitle
+                                : field === "description"
+                                  ? editedDescription
+                                  : editedTags
+                            }
+                            onChange={(e) => {
+                              if (field === "title") setEditedTitle(e.target.value);
+                              else if (field === "description") setEditedDescription(e.target.value);
+                              else setEditedTags(e.target.value);
+                            }}
+                            rows={field === "description" ? 6 : 2}
+                            style={{
+                              width: "100%",
+                              background: "#1a1a2e",
+                              border: "1px solid #334155",
+                              borderRadius: "8px",
+                              color: "#f1f5f9",
+                              padding: "10px 12px",
+                              fontSize: "13px",
+                              resize: "vertical",
+                              outline: "none",
+                              fontFamily: "inherit",
+                              lineHeight: "1.5",
+                              boxSizing: "border-box",
+                            }}
+                            onFocus={(e) => {
+                              e.currentTarget.style.borderColor = "#e94560";
+                            }}
+                            onBlur={(e) => {
+                              e.currentTarget.style.borderColor = "#334155";
+                            }}
+                          />
+                        ) : (
+                          <p
+                            style={{
+                              fontSize: "13px",
+                              color: "#f1f5f9",
+                              lineHeight: "1.5",
+                              whiteSpace: "pre-wrap",
+                              wordBreak: "break-word",
+                            }}
+                          >
+                            {result.optimized[field] || "(empty)"}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Reasoning */}
+                  <div
+                    style={{
+                      background: "#16162a",
+                      borderRadius: "12px",
+                      border: "1px solid #1e293b",
+                      padding: "20px",
+                    }}
+                  >
+                    <h4
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: 700,
+                        color: "#94a3b8",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.5px",
+                        marginBottom: "8px",
+                      }}
+                    >
+                      AI Reasoning
+                    </h4>
+                    <p
+                      style={{
+                        fontSize: "13px",
+                        color: "#94a3b8",
+                        lineHeight: "1.6",
+                        whiteSpace: "pre-wrap",
+                      }}
+                    >
+                      {result.reasoning}
+                    </p>
+                  </div>
+
+                  {/* Action buttons */}
+                  <div style={{ display: "flex", gap: "12px" }}>
+                    <button
+                      onClick={() => {
+                        if (editMode) {
+                          setEditMode(false);
+                        } else {
+                          setEditedTitle(result.optimized.title);
+                          setEditedDescription(result.optimized.description);
+                          setEditedTags(result.optimized.tags);
+                          setEditMode(true);
+                        }
+                      }}
+                      style={{
+                        flex: 1,
+                        background: "none",
+                        border: "1px solid #334155",
+                        borderRadius: "8px",
+                        color: "#94a3b8",
+                        padding: "12px 0",
+                        fontSize: "14px",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {editMode ? "Done Editing" : "Edit"}
+                    </button>
+                    <button
+                      onClick={handlePush}
+                      disabled={pushing}
+                      style={{
+                        flex: 2,
+                        background: pushing ? "#334155" : "#e94560",
+                        border: "none",
+                        borderRadius: "8px",
+                        color: "#fff",
+                        padding: "12px 0",
+                        fontSize: "14px",
+                        fontWeight: 600,
+                        cursor: pushing ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {pushing ? "Pushing..." : "Push to Shopify"}
+                    </button>
+                  </div>
+
+                  {/* Push status */}
+                  {pushStatus && (
+                    <div
+                      style={{
+                        background: pushStatus.ok
+                          ? "rgba(34, 197, 94, 0.1)"
+                          : "rgba(239, 68, 68, 0.1)",
+                        border: `1px solid ${pushStatus.ok ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`,
+                        borderRadius: "8px",
+                        padding: "12px 16px",
+                        color: pushStatus.ok ? "#86efac" : "#fca5a5",
+                        fontSize: "14px",
+                        textAlign: "center",
+                      }}
+                    >
+                      {pushStatus.msg}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Page Export                                                         */
+/* ------------------------------------------------------------------ */
+
+export default function ProductsPage() {
+  return (
+    <AuthGuard>
+      <ProductsContent />
+    </AuthGuard>
+  );
+}

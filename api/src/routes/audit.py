@@ -5,11 +5,11 @@ Includes both public (free tier) and authenticated endpoints.
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 
 from arq import create_pool
 from arq.connections import RedisSettings
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, HttpUrl
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -66,7 +66,13 @@ def _parse_redis_url(url: str) -> RedisSettings:
 
 
 async def _enqueue_audit(audit_id: str) -> None:
-    """Enqueue audit pipeline — falls back to sync if Redis unavailable."""
+    """Enqueue audit pipeline — runs sync in dev, queues via Redis in prod."""
+    if settings.APP_ENV == "development":
+        # No arq worker in dev — run pipeline directly
+        from src.pipeline import run_audit_pipeline
+        await run_audit_pipeline({}, audit_id)
+        return
+
     try:
         redis = await create_pool(_parse_redis_url(settings.VALKEY_URL))
         await redis.enqueue_job("run_audit_pipeline", audit_id)
@@ -95,11 +101,12 @@ async def create_free_audit(
         status=AuditStatus.PENDING,
     )
     session.add(audit)
-    await session.flush()
+    await session.commit()
 
     await _enqueue_audit(str(audit.id))
 
-    await session.commit()
+    # Refresh — pipeline may have updated the record via its own session
+    await session.refresh(audit)
     return audit
 
 
@@ -142,11 +149,12 @@ async def create_audit(
         status=AuditStatus.PENDING,
     )
     session.add(audit)
-    await session.flush()
+    await session.commit()
 
     await _enqueue_audit(str(audit.id))
 
-    await session.commit()
+    # Refresh — pipeline may have updated the record via its own session
+    await session.refresh(audit)
     return audit
 
 

@@ -14,6 +14,7 @@ from src.auth.models import User  # noqa: F401
 from src.models.product import Product  # noqa: F401
 from src.models.audit import AuditResult  # noqa: F401
 from src.models.store import Store  # noqa: F401
+from src.models.optimization import Optimization  # noqa: F401
 
 config = context.config
 

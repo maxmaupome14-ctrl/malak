@@ -8,17 +8,16 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Malak AI — Your AI CMO for Ecommerce",
+  title: "Kansa — AI Employee for Your Ecommerce Store",
   description:
-    "Open-source AI-powered marketing intelligence platform. Audit listings, track competitors, generate optimized copy — all on autopilot.",
+    "Connect your Shopify store. Kansa's AI agents analyze, optimize, and push changes to your listings — so you sell more without lifting a finger.",
   keywords: [
     "ecommerce",
     "AI",
-    "marketing",
-    "amazon",
-    "shopify",
+    "shopify optimization",
     "product listing optimization",
-    "competitive intelligence",
+    "AI employee",
+    "ecommerce automation",
   ],
 };
 

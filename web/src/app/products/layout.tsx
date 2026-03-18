@@ -1,9 +1,4 @@
 import AppSidebar from "@/components/app-sidebar";
-
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function ProductsLayout({ children }: { children: React.ReactNode }) {
   return <AppSidebar>{children}</AppSidebar>;
 }

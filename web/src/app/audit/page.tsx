@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
 
 type AuditStatus = "pending" | "scraping" | "analyzing" | "generating" | "completed" | "failed";
@@ -188,7 +188,7 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function AuditPage() {
+function AuditPageInner() {
   const searchParams = useSearchParams();
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
@@ -294,13 +294,13 @@ export default function AuditPage() {
               margin: "0 auto 24px",
             }}
           >
-            M
+            K
           </div>
           <h1 style={{ fontSize: "32px", fontWeight: 700, color: "#f1f5f9", marginBottom: "12px" }}>
             Audit a Product
           </h1>
           <p style={{ color: "#94a3b8", fontSize: "16px", lineHeight: 1.6 }}>
-            Paste any product URL and Malak&apos;s AI agents will analyze everything.
+            Paste any product URL and Kansa&apos;s AI agents will analyze everything.
           </p>
         </div>
 
@@ -858,5 +858,13 @@ export default function AuditPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function AuditPage() {
+  return (
+    <Suspense fallback={<div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}><p style={{ color: "#94a3b8" }}>Loading...</p></div>}>
+      <AuditPageInner />
+    </Suspense>
   );
 }
