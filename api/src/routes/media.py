@@ -137,7 +137,7 @@ async def generate_product_image(
 
     try:
         response = client.models.generate_content(
-            model="gemini-2.0-flash-exp",
+            model="gemini-2.5-flash-image",
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_modalities=["IMAGE"],
@@ -198,7 +198,7 @@ async def edit_product_image(
     client = _get_google_client(user)
 
     try:
-        chat = client.chats.create(model="gemini-2.0-flash-exp")
+        chat = client.chats.create(model="gemini-2.5-flash-image")
         response = chat.send_message([body.instructions, img])
     except Exception as exc:
         logger.error("Nano Banana image edit failed: %s", exc)
