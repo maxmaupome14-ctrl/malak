@@ -266,8 +266,9 @@ function ProductsContent() {
       );
       setUploadStatus({ ok: res.ok, msg: res.message });
       setReplaceIndex(null);
-    } catch {
-      setUploadStatus({ ok: false, msg: "Upload failed. Check store connection." });
+    } catch (err: any) {
+      const msg = err?.message || err?.detail || "Upload failed. Check store connection.";
+      setUploadStatus({ ok: false, msg });
     } finally {
       setUploadingImage(null);
     }

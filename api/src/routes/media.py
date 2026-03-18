@@ -289,20 +289,25 @@ async def upload_image_to_shopify(
     if not store or not store.access_token:
         raise HTTPException(status_code=400, detail="Store not connected")
 
-    shopify_product_id = int(product.platform_id)
+    try:
+        shopify_product_id = int(product.platform_id)
+    except (ValueError, TypeError):
+        return UploadImageResponse(ok=False, message=f"Invalid product ID: {product.platform_id}")
+
     shop_domain = store.platform_domain
     client = ShopifyClient(shop_domain, store.access_token)
+
+    # Use same IPv4-forced transport as other Shopify calls
+    transport = httpx.AsyncHTTPTransport(local_address="0.0.0.0")
 
     try:
         # If replacing, delete old image first
         if body.replace_index is not None:
-            # Get current product to find image ID
             shopify_product = await client.get_product(shopify_product_id)
             images = shopify_product.get("images", [])
             if 0 <= body.replace_index < len(images):
                 old_image_id = images[body.replace_index]["id"]
-                # Delete old image
-                async with httpx.AsyncClient(timeout=30) as http_client:
+                async with httpx.AsyncClient(transport=transport, timeout=30) as http_client:
                     await http_client.delete(
                         f"{client.base_url}/products/{shopify_product_id}/images/{old_image_id}.json",
                         headers=client._headers(),
@@ -318,7 +323,7 @@ async def upload_image_to_shopify(
         if body.position is not None:
             image_payload["image"]["position"] = body.position
 
-        async with httpx.AsyncClient(timeout=60) as http_client:
+        async with httpx.AsyncClient(transport=transport, timeout=60) as http_client:
             resp = await http_client.post(
                 f"{client.base_url}/products/{shopify_product_id}/images.json",
                 headers=client._headers(),
