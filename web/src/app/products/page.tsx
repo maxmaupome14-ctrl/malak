@@ -227,8 +227,9 @@ function ProductsContent() {
         aspect_ratio: "1:1",
       });
       setGeneratedImages(res.images);
-    } catch {
-      alert("Image generation failed. Make sure you have a Google AI key in Settings.");
+    } catch (err: any) {
+      const msg = err?.message || err?.detail || "Unknown error";
+      alert(`Image generation failed: ${msg}`);
     } finally {
       setGeneratingImage(false);
     }
