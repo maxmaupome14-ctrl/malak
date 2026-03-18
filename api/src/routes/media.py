@@ -6,6 +6,8 @@ Endpoints:
   POST /media/edit-image       → Edit existing product image with AI
   POST /media/upload-image     → Upload generated image to Shopify product
   POST /media/generate-video   → Generate AI product video
+  GET  /media/vault            → List all generated media for current user
+  DELETE /media/vault/{id}     → Delete a specific media item
 """
 
 import base64
@@ -14,7 +16,7 @@ import logging
 import uuid
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,6 +26,7 @@ from src.auth.router import current_active_user
 from src.config import settings
 from src.database import get_async_session
 from src.integrations.shopify import ShopifyClient
+from src.models.media import GeneratedMedia
 from src.models.product import Product
 from src.models.store import Store
 
@@ -45,6 +48,7 @@ class GenerateImageRequest(BaseModel):
 
 class GenerateImageResponse(BaseModel):
     images: list[str]  # base64-encoded images
+    media_ids: list[str] = []  # vault media IDs for each image
     prompt_used: str
 
 
@@ -82,6 +86,26 @@ class GenerateVideoResponse(BaseModel):
     status: str
     message: str
     video_base64: str | None = None
+
+
+class VaultMediaItem(BaseModel):
+    id: str
+    product_id: str | None
+    media_type: str
+    prompt_used: str
+    style: str | None
+    image_data: str
+    thumbnail_data: str | None
+    source: str
+    shopify_image_id: int | None
+    created_at: str
+
+
+class VaultListResponse(BaseModel):
+    items: list[VaultMediaItem]
+    total: int
+    page: int
+    page_size: int
 
 
 # ── Helpers ───────────────────────────────────────────
@@ -234,8 +258,31 @@ async def generate_product_image(
     if not images:
         raise HTTPException(status_code=502, detail="No images generated. Try a different prompt.")
 
+    # Auto-save each generated image to the vault
+    media_ids: list[str] = []
+    for b64 in images:
+        media_record = GeneratedMedia(
+            user_id=user.id,
+            product_id=product.id,
+            media_type="image",
+            prompt_used=prompt,
+            style=body.style,
+            image_data=b64,
+            source="generated",
+        )
+        session.add(media_record)
+        await session.flush()  # get the ID
+        media_ids.append(str(media_record.id))
+    try:
+        await session.commit()
+        logger.info("Saved %d image(s) to vault for product %s", len(images), product.id)
+    except Exception as exc:
+        logger.warning("Failed to save generated images to vault: %s", exc)
+        media_ids = []
+        await session.rollback()
+
     logger.info("Generated %d image(s) for product %s", len(images), product.id)
-    return GenerateImageResponse(images=images, prompt_used=prompt)
+    return GenerateImageResponse(images=images, media_ids=media_ids, prompt_used=prompt)
 
 
 @router.post("/edit-image", response_model=EditImageResponse)
@@ -274,6 +321,23 @@ async def edit_product_image(
 
     if not result_image:
         raise HTTPException(status_code=502, detail="No edited image returned.")
+
+    # Auto-save edited image to the vault
+    media_record = GeneratedMedia(
+        user_id=user.id,
+        product_id=product.id,
+        media_type="image",
+        prompt_used=body.instructions,
+        image_data=result_image,
+        source="edited",
+    )
+    session.add(media_record)
+    try:
+        await session.commit()
+        logger.info("Saved edited image to vault for product %s", product.id)
+    except Exception as exc:
+        logger.warning("Failed to save edited image to vault: %s", exc)
+        await session.rollback()
 
     return EditImageResponse(image=result_image, prompt_used=body.instructions)
 
@@ -337,11 +401,36 @@ async def upload_image_to_shopify(
             resp.raise_for_status()
             new_image = resp.json().get("image", {})
 
+        shopify_img_id = new_image.get("id")
         logger.info("Uploaded image to Shopify product %s", shopify_product_id)
+
+        # Update vault record with Shopify image ID if we can find a matching record
+        if shopify_img_id:
+            try:
+                # Find the most recent vault record for this product + user with matching base64
+                vault_result = await session.execute(
+                    select(GeneratedMedia)
+                    .where(
+                        GeneratedMedia.user_id == user.id,
+                        GeneratedMedia.product_id == product.id,
+                        GeneratedMedia.shopify_image_id.is_(None),
+                    )
+                    .order_by(GeneratedMedia.created_at.desc())
+                    .limit(1)
+                )
+                vault_record = vault_result.scalar_one_or_none()
+                if vault_record:
+                    vault_record.shopify_image_id = shopify_img_id
+                    await session.commit()
+                    logger.info("Updated vault record %s with Shopify image ID %s", vault_record.id, shopify_img_id)
+            except Exception as exc:
+                logger.warning("Failed to update vault record with Shopify image ID: %s", exc)
+                await session.rollback()
+
         return UploadImageResponse(
             ok=True,
             message="Image uploaded to Shopify successfully!",
-            shopify_image_id=new_image.get("id"),
+            shopify_image_id=shopify_img_id,
         )
 
     except Exception as exc:
@@ -404,3 +493,169 @@ async def generate_product_video(
             status="error",
             message=f"Video generation failed: {exc}",
         )
+
+
+# ── Vault Endpoints ──────────────────────────────────
+
+
+@router.get("/vault", response_model=VaultListResponse)
+async def list_vault_media(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    product_id: uuid.UUID | None = None,
+    media_type: str | None = None,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    List all generated media for the current user, newest first.
+
+    Supports filtering by product_id and media_type, with pagination.
+    """
+    from sqlalchemy import func as sa_func
+
+    # Build query
+    query = select(GeneratedMedia).where(GeneratedMedia.user_id == user.id)
+
+    if product_id:
+        query = query.where(GeneratedMedia.product_id == product_id)
+    if media_type:
+        query = query.where(GeneratedMedia.media_type == media_type)
+
+    # Get total count
+    count_query = select(sa_func.count()).select_from(query.subquery())
+    total_result = await session.execute(count_query)
+    total = total_result.scalar() or 0
+
+    # Paginate, newest first
+    offset = (page - 1) * page_size
+    query = query.order_by(GeneratedMedia.created_at.desc()).offset(offset).limit(page_size)
+    result = await session.execute(query)
+    records = result.scalars().all()
+
+    items = [
+        VaultMediaItem(
+            id=str(r.id),
+            product_id=str(r.product_id) if r.product_id else None,
+            media_type=r.media_type,
+            prompt_used=r.prompt_used,
+            style=r.style,
+            image_data=r.image_data,
+            thumbnail_data=r.thumbnail_data,
+            source=r.source,
+            shopify_image_id=r.shopify_image_id,
+            created_at=r.created_at.isoformat() if r.created_at else "",
+        )
+        for r in records
+    ]
+
+    return VaultListResponse(items=items, total=total, page=page, page_size=page_size)
+
+
+@router.delete("/vault/{media_id}")
+async def delete_vault_media(
+    media_id: uuid.UUID,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Delete a specific media item from the vault."""
+    result = await session.execute(
+        select(GeneratedMedia).where(
+            GeneratedMedia.id == media_id,
+            GeneratedMedia.user_id == user.id,
+        )
+    )
+    record = result.scalar_one_or_none()
+    if not record:
+        raise HTTPException(status_code=404, detail="Media not found")
+
+    await session.delete(record)
+    await session.commit()
+    return {"ok": True, "message": "Media deleted"}
+
+
+@router.post("/vault/upload-to-shopify", response_model=UploadImageResponse)
+async def upload_vault_to_shopify(
+    product_id: uuid.UUID,
+    media_id: uuid.UUID,
+    replace_index: int | None = None,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Upload a vault image to Shopify — no base64 from browser needed.
+
+    The server already has the image in the vault. This endpoint fetches
+    it from the database and uploads directly to Shopify. Eliminates
+    the large payload issue that causes 'Failed to fetch' errors.
+    """
+    # Get the vault media record
+    result = await session.execute(
+        select(GeneratedMedia).where(
+            GeneratedMedia.id == media_id,
+            GeneratedMedia.user_id == user.id,
+        )
+    )
+    media = result.scalar_one_or_none()
+    if not media:
+        raise HTTPException(status_code=404, detail="Media not found in vault")
+
+    product, store = await _get_product_and_store(product_id, user, session)
+
+    if not store or not store.access_token:
+        raise HTTPException(status_code=400, detail="Store not connected")
+
+    try:
+        shopify_product_id = int(product.platform_id)
+    except (ValueError, TypeError):
+        return UploadImageResponse(ok=False, message=f"Invalid product ID: {product.platform_id}")
+
+    client = ShopifyClient(store.platform_domain, store.access_token)
+    transport = httpx.AsyncHTTPTransport(local_address="0.0.0.0")
+
+    try:
+        # If replacing, delete old image first
+        if replace_index is not None:
+            shopify_product = await client.get_product(shopify_product_id)
+            images = shopify_product.get("images", [])
+            if 0 <= replace_index < len(images):
+                old_image_id = images[replace_index]["id"]
+                async with httpx.AsyncClient(transport=transport, timeout=30) as http_client:
+                    await http_client.delete(
+                        f"{client.base_url}/products/{shopify_product_id}/images/{old_image_id}.json",
+                        headers=client._headers(),
+                    )
+
+        # Upload from vault data
+        image_payload = {
+            "image": {
+                "attachment": media.image_data,
+                "filename": f"kansa-ai-{media.id}.jpg",
+            }
+        }
+
+        async with httpx.AsyncClient(transport=transport, timeout=60) as http_client:
+            resp = await http_client.post(
+                f"{client.base_url}/products/{shopify_product_id}/images.json",
+                headers=client._headers(),
+                json=image_payload,
+            )
+            resp.raise_for_status()
+            new_image = resp.json().get("image", {})
+
+        shopify_img_id = new_image.get("id")
+
+        # Update vault record
+        media.shopify_image_id = shopify_img_id
+        await session.commit()
+
+        logger.info("Uploaded vault media %s to Shopify product %s", media.id, shopify_product_id)
+        return UploadImageResponse(
+            ok=True,
+            message="Image uploaded to Shopify successfully!",
+            shopify_image_id=shopify_img_id,
+        )
+
+    except Exception as exc:
+        logger.error("Vault upload to Shopify failed: %s", exc)
+        return UploadImageResponse(ok=False, message=f"Upload failed: {exc}")

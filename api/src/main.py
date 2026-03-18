@@ -45,6 +45,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         from src.models.product import Product  # noqa: F401
         from src.models.audit import AuditResult  # noqa: F401
         from src.models.optimization import Optimization  # noqa: F401
+        from src.models.media import GeneratedMedia  # noqa: F401
 
         try:
             async with engine.begin() as conn:

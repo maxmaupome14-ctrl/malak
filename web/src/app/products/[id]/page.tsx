@@ -37,30 +37,41 @@ interface ProductDetail {
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
-/** Compress a base64 image to max 1200px and JPEG quality 85% for upload */
-function compressImage(base64: string, maxSize = 1200, quality = 0.85): Promise<string> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      let { width, height } = img;
-      if (width > maxSize || height > maxSize) {
-        if (width > height) {
-          height = Math.round((height * maxSize) / width);
-          width = maxSize;
-        } else {
-          width = Math.round((width * maxSize) / height);
-          height = maxSize;
+/** Compress a base64 image to max 800px and JPEG quality 70% for upload */
+function compressImage(base64: string, maxSize = 800, quality = 0.7): Promise<string> {
+  return new Promise((resolve, reject) => {
+    try {
+      const img = new window.Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          let { width, height } = img;
+          if (width > maxSize || height > maxSize) {
+            if (width > height) {
+              height = Math.round((height * maxSize) / width);
+              width = maxSize;
+            } else {
+              width = Math.round((width * maxSize) / height);
+              height = maxSize;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d")!;
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL("image/jpeg", quality);
+          resolve(dataUrl.split(",")[1]);
+        } catch (e) {
+          resolve(base64);
         }
-      }
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d")!;
-      ctx.drawImage(img, 0, 0, width, height);
-      const compressed = canvas.toDataURL("image/jpeg", quality);
-      resolve(compressed.split(",")[1]);
-    };
-    img.src = `data:image/png;base64,${base64}`;
+      };
+      img.onerror = () => {
+        resolve(base64);
+      };
+      img.src = `data:image/png;base64,${base64}`;
+    } catch (e) {
+      resolve(base64);
+    }
   });
 }
 
@@ -384,6 +395,7 @@ function ProductDetailContent() {
   // Media state
   const [generatingImage, setGeneratingImage] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
+  const [generatedMediaIds, setGeneratedMediaIds] = useState<string[]>([]);
   const [imageStyle, setImageStyle] = useState("product");
   const [imagePrompt, setImagePrompt] = useState("");
   const [uploadingImage, setUploadingImage] = useState<number | null>(null);
@@ -459,14 +471,16 @@ function ProductDetailContent() {
     if (!product) return;
     setGeneratingImage(true);
     setGeneratedImages([]);
+    setGeneratedMediaIds([]);
     try {
-      const res = await api.post<{ images: string[]; prompt_used: string }>("/media/generate-image", {
+      const res = await api.post<{ images: string[]; media_ids: string[]; prompt_used: string }>("/media/generate-image", {
         product_id: product.id,
         style: imageStyle,
         prompt: imagePrompt || undefined,
         aspect_ratio: "1:1",
       });
       setGeneratedImages(res.images);
+      setGeneratedMediaIds(res.media_ids || []);
     } catch (err: any) {
       const msg = err?.message || err?.detail || "Unknown error";
       alert(`Image generation failed: ${msg}`);
@@ -475,19 +489,31 @@ function ProductDetailContent() {
     }
   };
 
-  /* Upload generated image to Shopify */
+  /* Upload generated image to Shopify via vault (no large payload) */
   const handleUploadToShopify = async (imageBase64: string, index: number) => {
     if (!product) return;
     setUploadingImage(index);
     setUploadStatus(null);
+
+    const mediaId = generatedMediaIds[index];
+
     try {
-      const compressed = await compressImage(imageBase64);
-      const res = await api.post<{ ok: boolean; message: string }>("/media/upload-image", {
-        product_id: product.id,
-        image_base64: compressed,
-        filename: `${product.title || "product"}-ai-${index + 1}.jpg`,
-        replace_index: replaceIndex,
-      });
+      let res: { ok: boolean; message: string };
+
+      if (mediaId) {
+        res = await api.post<{ ok: boolean; message: string }>(
+          `/media/vault/upload-to-shopify?product_id=${product.id}&media_id=${mediaId}${replaceIndex !== null ? `&replace_index=${replaceIndex}` : ""}`,
+          {}
+        );
+      } else {
+        const compressed = await compressImage(imageBase64);
+        res = await api.post<{ ok: boolean; message: string }>("/media/upload-image", {
+          product_id: product.id,
+          image_base64: compressed,
+          filename: `${product.title || "product"}-ai-${index + 1}.jpg`,
+          replace_index: replaceIndex,
+        });
+      }
       setUploadStatus({ ok: res.ok, msg: res.message });
       setReplaceIndex(null);
     } catch (err: any) {
