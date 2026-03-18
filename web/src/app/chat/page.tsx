@@ -328,10 +328,10 @@ function ChatContent() {
                     ? "16px 16px 4px 16px"
                     : "16px 16px 16px 4px",
                 background:
-                  msg.role === "user" ? "#e94560" : "#16162a",
+                  msg.role === "user" ? "#c41e3a" : "#16162a",
                 border:
                   msg.role === "user"
-                    ? "1px solid #e94560"
+                    ? "1px solid #c41e3a"
                     : "1px solid #1e293b",
                 color: msg.role === "user" ? "#ffffff" : "#f1f5f9",
                 fontSize: "14px",
@@ -351,7 +351,7 @@ function ChatContent() {
                       display: "inline-flex",
                       alignItems: "center",
                       gap: "6px",
-                      color: "#e94560",
+                      color: "#c41e3a",
                       fontSize: "13px",
                       fontWeight: 600,
                       textDecoration: "none",
@@ -448,7 +448,7 @@ function ChatContent() {
             onClick={sendMessage}
             disabled={!input.trim() || isStreaming}
             style={{
-              background: input.trim() && !isStreaming ? "#e94560" : "#334155",
+              background: input.trim() && !isStreaming ? "#c41e3a" : "#334155",
               border: "none",
               borderRadius: "12px",
               color: input.trim() && !isStreaming ? "#ffffff" : "#64748b",

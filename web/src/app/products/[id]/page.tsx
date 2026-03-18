@@ -335,7 +335,7 @@ function ImageGallery({ images, title }: { images: string[]; title: string }) {
                 height: "64px",
                 borderRadius: "8px",
                 overflow: "hidden",
-                border: i === activeIndex ? "2px solid #e94560" : "2px solid #1e293b",
+                border: i === activeIndex ? "2px solid #c41e3a" : "2px solid #1e293b",
                 background: "#0f0f23",
                 cursor: "pointer",
                 flexShrink: 0,
@@ -561,7 +561,7 @@ function ProductDetailContent() {
             width: "40px",
             height: "40px",
             border: "3px solid #1e293b",
-            borderTopColor: "#e94560",
+            borderTopColor: "#c41e3a",
             borderRadius: "50%",
             animation: "spin 1s linear infinite",
             marginBottom: "16px",
@@ -602,7 +602,7 @@ function ProductDetailContent() {
           <button
             onClick={() => router.push("/products")}
             style={{
-              background: "#e94560",
+              background: "#c41e3a",
               border: "none",
               borderRadius: "8px",
               color: "#fff",
@@ -871,7 +871,7 @@ function ProductDetailContent() {
               }}
               style={{
                 flex: 1,
-                background: "#e94560",
+                background: "#c41e3a",
                 border: "none",
                 borderRadius: "8px",
                 color: "#fff",
@@ -885,7 +885,7 @@ function ProductDetailContent() {
                 (e.currentTarget as HTMLButtonElement).style.background = "#d13354";
               }}
               onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background = "#e94560";
+                (e.currentTarget as HTMLButtonElement).style.background = "#c41e3a";
               }}
             >
               Optimize
@@ -1016,7 +1016,7 @@ function ProductDetailContent() {
                       width: "6px",
                       height: "6px",
                       borderRadius: "50%",
-                      background: "#e94560",
+                      background: "#c41e3a",
                       flexShrink: 0,
                       marginTop: "7px",
                     }}
@@ -1320,7 +1320,7 @@ function ProductDetailContent() {
                     fontFamily: "inherit",
                     boxSizing: "border-box",
                   }}
-                  onFocus={(e) => { e.currentTarget.style.borderColor = "#e94560"; }}
+                  onFocus={(e) => { e.currentTarget.style.borderColor = "#c41e3a"; }}
                   onBlur={(e) => { e.currentTarget.style.borderColor = "#334155"; }}
                 />
               </div>
@@ -1330,7 +1330,7 @@ function ProductDetailContent() {
                 onClick={handleGenerate}
                 disabled={generating}
                 style={{
-                  background: generating ? "#334155" : "#e94560",
+                  background: generating ? "#334155" : "#c41e3a",
                   border: "none",
                   borderRadius: "8px",
                   color: "#fff",
@@ -1352,7 +1352,7 @@ function ProductDetailContent() {
                       width: "32px",
                       height: "32px",
                       border: "3px solid #334155",
-                      borderTop: "3px solid #e94560",
+                      borderTop: "3px solid #c41e3a",
                       borderRadius: "50%",
                       margin: "0 auto 16px",
                       animation: "spin 1s linear infinite",
@@ -1447,7 +1447,7 @@ function ProductDetailContent() {
                     <button
                       onClick={handlePush}
                       disabled={pushing}
-                      style={{ flex: 2, background: pushing ? "#334155" : "#e94560", border: "none", borderRadius: "8px", color: "#fff", padding: "12px 0", fontSize: "14px", fontWeight: 600, cursor: pushing ? "not-allowed" : "pointer" }}
+                      style={{ flex: 2, background: pushing ? "#334155" : "#c41e3a", border: "none", borderRadius: "8px", color: "#fff", padding: "12px 0", fontSize: "14px", fontWeight: 600, cursor: pushing ? "not-allowed" : "pointer" }}
                     >
                       {pushing ? "Pushing..." : "Push to Shopify"}
                     </button>
@@ -1474,7 +1474,7 @@ function ProductDetailContent() {
               {/* ── AI Image Generation ─────────────────────── */}
               <div style={{ background: "#16162a", borderRadius: "12px", border: "1px solid #1e293b", padding: "20px" }}>
                 <h4 style={{ fontSize: "13px", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e94560" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.5 4.5H18l-3.5 2.5L16 14.5 12 11.5 8 14.5l1.5-4.5L6 7.5h4.5z" /></svg>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c41e3a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.5 4.5H18l-3.5 2.5L16 14.5 12 11.5 8 14.5l1.5-4.5L6 7.5h4.5z" /></svg>
                   AI Image Generation
                 </h4>
 
@@ -1495,9 +1495,9 @@ function ProductDetailContent() {
                         fontSize: "12px",
                         fontWeight: 600,
                         cursor: "pointer",
-                        border: imageStyle === s.id ? "1px solid #e94560" : "1px solid #334155",
-                        background: imageStyle === s.id ? "rgba(233,69,96,0.15)" : "#1a1a2e",
-                        color: imageStyle === s.id ? "#e94560" : "#94a3b8",
+                        border: imageStyle === s.id ? "1px solid #c41e3a" : "1px solid #334155",
+                        background: imageStyle === s.id ? "rgba(196,30,58,0.15)" : "#1a1a2e",
+                        color: imageStyle === s.id ? "#c41e3a" : "#94a3b8",
                       }}
                     >
                       {s.label}
@@ -1550,7 +1550,7 @@ function ProductDetailContent() {
                         </div>
                         <div style={{ marginTop: "6px" }}>
                           <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "11px", color: "#64748b" }}>
-                            <input type="checkbox" checked={replaceIndex !== null} onChange={(e) => setReplaceIndex(e.target.checked ? 0 : null)} style={{ accentColor: "#e94560" }} />
+                            <input type="checkbox" checked={replaceIndex !== null} onChange={(e) => setReplaceIndex(e.target.checked ? 0 : null)} style={{ accentColor: "#c41e3a" }} />
                             Replace existing image at position:
                             {replaceIndex !== null && (
                               <input type="number" min={0} value={replaceIndex} onChange={(e) => setReplaceIndex(parseInt(e.target.value) || 0)} style={{ width: "48px", background: "#1a1a2e", border: "1px solid #334155", borderRadius: "4px", color: "#f1f5f9", padding: "2px 6px", fontSize: "11px", textAlign: "center" }} />
@@ -1572,7 +1572,7 @@ function ProductDetailContent() {
               {/* ── AI Image Editing ───────────────────────── */}
               <div style={{ background: "#16162a", borderRadius: "12px", border: "1px solid #1e293b", padding: "20px" }}>
                 <h4 style={{ fontSize: "13px", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e94560" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c41e3a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                   Edit Existing Image
                 </h4>
 
@@ -1587,7 +1587,7 @@ function ProductDetailContent() {
                 {product.images[0] && !editImageUrl && (
                   <button
                     onClick={() => setEditImageUrl(product.images[0])}
-                    style={{ background: "none", border: "none", color: "#e94560", fontSize: "12px", cursor: "pointer", padding: "0", marginBottom: "10px" }}
+                    style={{ background: "none", border: "none", color: "#c41e3a", fontSize: "12px", cursor: "pointer", padding: "0", marginBottom: "10px" }}
                   >
                     Use current product image
                   </button>

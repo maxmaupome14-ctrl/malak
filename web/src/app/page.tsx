@@ -29,16 +29,17 @@ export default function LandingPage() {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <svg width="36" height="36" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg width="36" height="36" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
             <defs>
-              <linearGradient id="kansa-nav-grad" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stopColor="#e94560" />
-                <stop offset="100%" stopColor="#c2185b" />
+              <linearGradient id="kansa-nav-grad" x1="0" y1="0" x2="30" y2="30" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#c41e3a" />
+                <stop offset="100%" stopColor="#891527" />
               </linearGradient>
             </defs>
-            <rect width="32" height="32" rx="8" fill="url(#kansa-nav-grad)" />
-            <path d="M11 8v16M11 16l7-8M11 16l7 8" stroke="white" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
-            <circle cx="22" cy="12" r="2" fill="rgba(255,255,255,0.6)" />
+            <rect width="30" height="30" rx="8" fill="url(#kansa-nav-grad)" />
+            <rect x="7" y="16" width="4.5" height="7" rx="1.5" fill="rgba(255,255,255,0.35)" />
+            <rect x="12.75" y="11" width="4.5" height="12" rx="1.5" fill="rgba(255,255,255,0.65)" />
+            <rect x="18.5" y="7" width="4.5" height="16" rx="1.5" fill="white" />
           </svg>
           <span style={{ fontSize: "20px", fontWeight: 700, color: "#f1f5f9", letterSpacing: "-0.4px" }}>
             Kansa
@@ -100,7 +101,7 @@ export default function LandingPage() {
           Your AI{" "}
           <span
             style={{
-              background: "linear-gradient(135deg, #e94560, #f87171)",
+              background: "linear-gradient(135deg, #c41e3a, #f87171)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
             }}
@@ -158,14 +159,14 @@ export default function LandingPage() {
                   width: "44px",
                   height: "44px",
                   borderRadius: "12px",
-                  background: "rgba(233, 69, 96, 0.08)",
-                  border: "1px solid rgba(233, 69, 96, 0.12)",
+                  background: "rgba(196, 30, 58, 0.08)",
+                  border: "1px solid rgba(196, 30, 58, 0.12)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   fontWeight: 700,
                   fontSize: "18px",
-                  color: "#e94560",
+                  color: "#c41e3a",
                   margin: "0 auto 16px",
                 }}>
                   {item.step}
@@ -234,7 +235,7 @@ export default function LandingPage() {
             ].map((agent) => (
               <div key={agent.name} className="card-hover" style={{ textAlign: "left", background: "#0d0d20", border: "1px solid rgba(255,255,255,0.04)", borderRadius: "14px", padding: "24px" }}>
                 <div style={{ marginBottom: "10px" }}>
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#e94560" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d={agent.path} /></svg>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#c41e3a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d={agent.path} /></svg>
                 </div>
                 <h3 style={{ fontSize: "15px", fontWeight: 600, color: "#f1f5f9", marginBottom: "6px" }}>
                   {agent.name}

@@ -18,16 +18,17 @@ export default function PricingPage() {
         }}
       >
         <Link href="/" style={{ display: "flex", alignItems: "center", gap: "10px", textDecoration: "none" }}>
-          <svg width="36" height="36" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg width="36" height="36" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
             <defs>
-              <linearGradient id="kansa-price-grad" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stopColor="#e94560" />
-                <stop offset="100%" stopColor="#c2185b" />
+              <linearGradient id="kansa-price-grad" x1="0" y1="0" x2="30" y2="30" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#c41e3a" />
+                <stop offset="100%" stopColor="#891527" />
               </linearGradient>
             </defs>
-            <rect width="32" height="32" rx="8" fill="url(#kansa-price-grad)" />
-            <path d="M11 8v16M11 16l7-8M11 16l7 8" stroke="white" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
-            <circle cx="22" cy="12" r="2" fill="rgba(255,255,255,0.6)" />
+            <rect width="30" height="30" rx="8" fill="url(#kansa-price-grad)" />
+            <rect x="7" y="16" width="4.5" height="7" rx="1.5" fill="rgba(255,255,255,0.35)" />
+            <rect x="12.75" y="11" width="4.5" height="12" rx="1.5" fill="rgba(255,255,255,0.65)" />
+            <rect x="18.5" y="7" width="4.5" height="16" rx="1.5" fill="white" />
           </svg>
           <span style={{ fontSize: "20px", fontWeight: 700, color: "#f1f5f9", letterSpacing: "-0.4px" }}>Kansa</span>
         </Link>
@@ -83,7 +84,7 @@ export default function PricingPage() {
               padding: "32px",
               display: "flex",
               flexDirection: "column",
-              border: "2px solid #e94560",
+              border: "2px solid #c41e3a",
               position: "relative",
             }}
           >
@@ -92,7 +93,7 @@ export default function PricingPage() {
               top: "-12px",
               left: "50%",
               transform: "translateX(-50%)",
-              background: "linear-gradient(135deg, #e94560, #b91c1c)",
+              background: "linear-gradient(135deg, #c41e3a, #b91c1c)",
               color: "white",
               fontSize: "12px",
               fontWeight: 700,

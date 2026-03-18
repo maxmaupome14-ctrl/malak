@@ -458,7 +458,7 @@ function ProductsContent() {
             onClick={handleSync}
             disabled={syncing || !activeStore}
             style={{
-              background: syncing ? "#334155" : "#e94560",
+              background: syncing ? "#334155" : "#c41e3a",
               border: "none",
               borderRadius: "10px",
               color: "#fff",
@@ -507,7 +507,7 @@ function ProductsContent() {
               onClick={handleSync}
               disabled={syncing}
               style={{
-                background: "#e94560",
+                background: "#c41e3a",
                 border: "none",
                 borderRadius: "10px",
                 color: "#fff",
@@ -544,7 +544,7 @@ function ProductsContent() {
                   background: "#0d0d20",
                   borderRadius: "14px",
                   border: isHovered
-                    ? "1px solid rgba(233, 69, 96, 0.15)"
+                    ? "1px solid rgba(196, 30, 58, 0.15)"
                     : "1px solid rgba(255,255,255,0.04)",
                   padding: "0",
                   overflow: "hidden",
@@ -674,10 +674,10 @@ function ProductsContent() {
                     style={{
                       marginTop: "16px",
                       width: "100%",
-                      background: "rgba(233, 69, 96, 0.06)",
-                      border: "1px solid rgba(233, 69, 96, 0.15)",
+                      background: "rgba(196, 30, 58, 0.06)",
+                      border: "1px solid rgba(196, 30, 58, 0.15)",
                       borderRadius: "8px",
-                      color: "#e94560",
+                      color: "#c41e3a",
                       padding: "10px 0",
                       fontSize: "14px",
                       fontWeight: 600,
@@ -686,11 +686,11 @@ function ProductsContent() {
                     }}
                     onMouseEnter={(e) => {
                       (e.currentTarget as HTMLButtonElement).style.background =
-                        "rgba(233, 69, 96, 0.12)";
+                        "rgba(196, 30, 58, 0.12)";
                     }}
                     onMouseLeave={(e) => {
                       (e.currentTarget as HTMLButtonElement).style.background =
-                        "rgba(233, 69, 96, 0.06)";
+                        "rgba(196, 30, 58, 0.06)";
                     }}
                   >
                     Optimize
@@ -887,7 +887,7 @@ function ProductsContent() {
                     boxSizing: "border-box",
                   }}
                   onFocus={(e) => {
-                    e.currentTarget.style.borderColor = "#e94560";
+                    e.currentTarget.style.borderColor = "#c41e3a";
                   }}
                   onBlur={(e) => {
                     e.currentTarget.style.borderColor = "#334155";
@@ -900,7 +900,7 @@ function ProductsContent() {
                 onClick={handleGenerate}
                 disabled={generating}
                 style={{
-                  background: generating ? "#334155" : "#e94560",
+                  background: generating ? "#334155" : "#c41e3a",
                   border: "none",
                   borderRadius: "8px",
                   color: "#fff",
@@ -929,7 +929,7 @@ function ProductsContent() {
                       width: "32px",
                       height: "32px",
                       border: "3px solid #334155",
-                      borderTop: "3px solid #e94560",
+                      borderTop: "3px solid #c41e3a",
                       borderRadius: "50%",
                       margin: "0 auto 16px",
                       animation: "spin 1s linear infinite",
@@ -1042,7 +1042,7 @@ function ProductsContent() {
                               boxSizing: "border-box",
                             }}
                             onFocus={(e) => {
-                              e.currentTarget.style.borderColor = "#e94560";
+                              e.currentTarget.style.borderColor = "#c41e3a";
                             }}
                             onBlur={(e) => {
                               e.currentTarget.style.borderColor = "#334155";
@@ -1130,7 +1130,7 @@ function ProductsContent() {
                       disabled={pushing}
                       style={{
                         flex: 2,
-                        background: pushing ? "#334155" : "#e94560",
+                        background: pushing ? "#334155" : "#c41e3a",
                         border: "none",
                         borderRadius: "8px",
                         color: "#fff",
@@ -1211,9 +1211,9 @@ function ProductsContent() {
                         fontSize: "12px",
                         fontWeight: 600,
                         cursor: "pointer",
-                        border: imageStyle === s.id ? "1px solid #e94560" : "1px solid #334155",
-                        background: imageStyle === s.id ? "rgba(233,69,96,0.15)" : "#1a1a2e",
-                        color: imageStyle === s.id ? "#e94560" : "#94a3b8",
+                        border: imageStyle === s.id ? "1px solid #c41e3a" : "1px solid #334155",
+                        background: imageStyle === s.id ? "rgba(196,30,58,0.15)" : "#1a1a2e",
+                        color: imageStyle === s.id ? "#c41e3a" : "#94a3b8",
                       }}
                     >
                       {s.label}
@@ -1325,7 +1325,7 @@ function ProductsContent() {
                               type="checkbox"
                               checked={replaceIndex !== null}
                               onChange={(e) => setReplaceIndex(e.target.checked ? 0 : null)}
-                              style={{ accentColor: "#e94560" }}
+                              style={{ accentColor: "#c41e3a" }}
                             />
                             Replace existing image at position:
                             {replaceIndex !== null && (
@@ -1425,7 +1425,7 @@ function ProductsContent() {
                     style={{
                       background: "none",
                       border: "none",
-                      color: "#e94560",
+                      color: "#c41e3a",
                       fontSize: "12px",
                       cursor: "pointer",
                       padding: "0",

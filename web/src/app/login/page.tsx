@@ -8,22 +8,17 @@ import { ApiError } from "@/lib/api";
 
 function KansaLogo() {
   return (
-    <svg width="40" height="40" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg width="44" height="44" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
-        <linearGradient id="kansa-login-grad" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#e94560" />
-          <stop offset="100%" stopColor="#c2185b" />
+        <linearGradient id="kansa-login-grad" x1="0" y1="0" x2="30" y2="30" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#c41e3a" />
+          <stop offset="100%" stopColor="#891527" />
         </linearGradient>
       </defs>
-      <rect width="32" height="32" rx="8" fill="url(#kansa-login-grad)" />
-      <path
-        d="M11 8v16M11 16l7-8M11 16l7 8"
-        stroke="white"
-        strokeWidth="2.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle cx="22" cy="12" r="2" fill="rgba(255,255,255,0.6)" />
+      <rect width="30" height="30" rx="8" fill="url(#kansa-login-grad)" />
+      <rect x="7" y="16" width="4.5" height="7" rx="1.5" fill="rgba(255,255,255,0.35)" />
+      <rect x="12.75" y="11" width="4.5" height="12" rx="1.5" fill="rgba(255,255,255,0.65)" />
+      <rect x="18.5" y="7" width="4.5" height="16" rx="1.5" fill="white" />
     </svg>
   );
 }
@@ -69,24 +64,40 @@ export default function LoginPage() {
         justifyContent: "center",
         padding: "20px",
         background: "#08081a",
+        position: "relative",
+        overflow: "hidden",
       }}
     >
-      {/* Subtle radial glow behind the form */}
+      {/* Background gradient orb */}
       <div
         style={{
           position: "fixed",
-          top: "30%",
+          top: "25%",
           left: "50%",
           transform: "translateX(-50%)",
-          width: "600px",
-          height: "600px",
-          background: "radial-gradient(circle, rgba(233,69,96,0.06) 0%, transparent 70%)",
+          width: "700px",
+          height: "700px",
+          background: "radial-gradient(circle, rgba(196,30,58,0.05) 0%, transparent 65%)",
           pointerEvents: "none",
         }}
       />
 
-      <div style={{ width: "100%", maxWidth: "380px", position: "relative" }}>
-        {/* Logo */}
+      {/* Subtle grid pattern */}
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          backgroundImage: `
+            linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px)
+          `,
+          backgroundSize: "64px 64px",
+          pointerEvents: "none",
+        }}
+      />
+
+      <div style={{ width: "100%", maxWidth: "400px", position: "relative" }}>
+        {/* Logo & brand */}
         <div style={{ textAlign: "center", marginBottom: "40px" }}>
           <Link
             href="/"
@@ -99,11 +110,11 @@ export default function LoginPage() {
           >
             <KansaLogo />
             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
-              <span style={{ fontSize: "22px", fontWeight: 700, color: "#f1f5f9", letterSpacing: "-0.5px", lineHeight: 1 }}>
+              <span style={{ fontSize: "24px", fontWeight: 700, color: "#f1f5f9", letterSpacing: "-0.5px", lineHeight: 1 }}>
                 Kansa
               </span>
-              <span style={{ fontSize: "11px", fontWeight: 500, color: "#475569", letterSpacing: "0.3px", marginTop: "2px" }}>
-                AI Commerce
+              <span style={{ fontSize: "11px", fontWeight: 500, color: "#3d4250", letterSpacing: "0.5px", marginTop: "3px" }}>
+                AI Commerce Platform
               </span>
             </div>
           </Link>
@@ -112,15 +123,16 @@ export default function LoginPage() {
         {/* Form card */}
         <div
           style={{
-            background: "#0d0d20",
+            background: "rgba(13,13,32,0.8)",
+            backdropFilter: "blur(20px)",
             border: "1px solid rgba(255,255,255,0.04)",
             borderRadius: "16px",
-            padding: "32px",
+            padding: "36px",
           }}
         >
           <h1
             style={{
-              fontSize: "20px",
+              fontSize: "22px",
               fontWeight: 700,
               color: "#f1f5f9",
               marginBottom: "6px",
@@ -129,9 +141,9 @@ export default function LoginPage() {
           >
             {isRegister ? "Create your account" : "Welcome back"}
           </h1>
-          <p style={{ color: "#525c6c", fontSize: "13px", marginBottom: "28px" }}>
+          <p style={{ color: "#4a4f5e", fontSize: "14px", marginBottom: "28px" }}>
             {isRegister
-              ? "Start optimizing your ecommerce listings with AI."
+              ? "Start optimizing your ecommerce listings."
               : "Sign in to your Kansa account."}
           </p>
 
@@ -139,14 +151,18 @@ export default function LoginPage() {
             <div
               style={{
                 background: "rgba(239, 68, 68, 0.06)",
-                border: "1px solid rgba(239, 68, 68, 0.15)",
+                border: "1px solid rgba(239, 68, 68, 0.12)",
                 borderRadius: "10px",
                 padding: "12px 16px",
                 marginBottom: "20px",
                 color: "#fca5a5",
                 fontSize: "13px",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
               }}
             >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><path d="M12 8v4m0 4h.01" /></svg>
               {error}
             </div>
           )}
@@ -158,8 +174,10 @@ export default function LoginPage() {
                   display: "block",
                   fontSize: "12px",
                   fontWeight: 600,
-                  color: "#8892a4",
+                  color: "#6b7280",
                   marginBottom: "6px",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.5px",
                 }}
               >
                 Email
@@ -172,28 +190,30 @@ export default function LoginPage() {
                 required
                 style={{
                   width: "100%",
-                  padding: "11px 14px",
+                  padding: "12px 14px",
                   borderRadius: "10px",
                   border: "1px solid rgba(255,255,255,0.06)",
-                  background: "#0a0a1a",
+                  background: "rgba(8,8,26,0.6)",
                   color: "#f1f5f9",
                   fontSize: "14px",
                   outline: "none",
                   transition: "border-color 0.15s",
                   boxSizing: "border-box",
                 }}
-                onFocus={(e) => { e.currentTarget.style.borderColor = "rgba(233,69,96,0.4)"; }}
+                onFocus={(e) => { e.currentTarget.style.borderColor = "rgba(196,30,58,0.35)"; }}
                 onBlur={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; }}
               />
             </div>
-            <div style={{ marginBottom: "24px" }}>
+            <div style={{ marginBottom: "26px" }}>
               <label
                 style={{
                   display: "block",
                   fontSize: "12px",
                   fontWeight: 600,
-                  color: "#8892a4",
+                  color: "#6b7280",
                   marginBottom: "6px",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.5px",
                 }}
               >
                 Password
@@ -207,17 +227,17 @@ export default function LoginPage() {
                 minLength={8}
                 style={{
                   width: "100%",
-                  padding: "11px 14px",
+                  padding: "12px 14px",
                   borderRadius: "10px",
                   border: "1px solid rgba(255,255,255,0.06)",
-                  background: "#0a0a1a",
+                  background: "rgba(8,8,26,0.6)",
                   color: "#f1f5f9",
                   fontSize: "14px",
                   outline: "none",
                   transition: "border-color 0.15s",
                   boxSizing: "border-box",
                 }}
-                onFocus={(e) => { e.currentTarget.style.borderColor = "rgba(233,69,96,0.4)"; }}
+                onFocus={(e) => { e.currentTarget.style.borderColor = "rgba(196,30,58,0.35)"; }}
                 onBlur={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; }}
               />
             </div>
@@ -226,15 +246,16 @@ export default function LoginPage() {
               disabled={loading}
               style={{
                 width: "100%",
-                padding: "12px",
+                padding: "13px",
                 borderRadius: "10px",
                 border: "none",
-                background: loading ? "#334155" : "#e94560",
+                background: loading ? "#1a1a2e" : "linear-gradient(135deg, #c41e3a, #a01830)",
                 color: "#fff",
                 fontSize: "14px",
                 fontWeight: 600,
                 cursor: loading ? "not-allowed" : "pointer",
-                transition: "background 0.15s",
+                transition: "all 0.2s ease",
+                letterSpacing: "0.2px",
               }}
             >
               {loading
@@ -250,9 +271,9 @@ export default function LoginPage() {
           <p
             style={{
               textAlign: "center",
-              marginTop: "20px",
+              marginTop: "22px",
               fontSize: "13px",
-              color: "#525c6c",
+              color: "#4a4f5e",
             }}
           >
             {isRegister ? "Already have an account?" : "Don't have an account?"}{" "}
@@ -264,7 +285,7 @@ export default function LoginPage() {
               style={{
                 background: "none",
                 border: "none",
-                color: "#e94560",
+                color: "#c41e3a",
                 cursor: "pointer",
                 fontSize: "13px",
                 fontWeight: 600,
@@ -276,7 +297,7 @@ export default function LoginPage() {
         </div>
 
         {/* Footer */}
-        <p style={{ textAlign: "center", marginTop: "24px", fontSize: "11px", color: "#2a2a40" }}>
+        <p style={{ textAlign: "center", marginTop: "28px", fontSize: "11px", color: "#2a2f3e" }}>
           Kansa AI &middot; AI-powered ecommerce
         </p>
       </div>

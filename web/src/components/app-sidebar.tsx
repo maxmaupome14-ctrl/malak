@@ -3,26 +3,20 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-/* ── Kansa Logo SVG ────────────────────────────────────────────────── */
+/* ── Kansa Logo — abstract ascending bars mark ────────────────────── */
 function KansaLogo() {
   return (
-    <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
-        <linearGradient id="kansa-grad" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#e94560" />
-          <stop offset="100%" stopColor="#c2185b" />
+        <linearGradient id="k-grad" x1="0" y1="0" x2="30" y2="30" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#c41e3a" />
+          <stop offset="100%" stopColor="#891527" />
         </linearGradient>
       </defs>
-      <rect width="32" height="32" rx="8" fill="url(#kansa-grad)" />
-      {/* Geometric K mark */}
-      <path
-        d="M11 8v16M11 16l7-8M11 16l7 8"
-        stroke="white"
-        strokeWidth="2.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle cx="22" cy="12" r="2" fill="rgba(255,255,255,0.6)" />
+      <rect width="30" height="30" rx="8" fill="url(#k-grad)" />
+      <rect x="7" y="16" width="4.5" height="7" rx="1.5" fill="rgba(255,255,255,0.35)" />
+      <rect x="12.75" y="11" width="4.5" height="12" rx="1.5" fill="rgba(255,255,255,0.65)" />
+      <rect x="18.5" y="7" width="4.5" height="16" rx="1.5" fill="white" />
     </svg>
   );
 }
@@ -59,15 +53,15 @@ const SECTIONS = [
 function NavIcon({ path, active }: { path: string; active: boolean }) {
   return (
     <svg
-      width="18"
-      height="18"
+      width="17"
+      height="17"
       viewBox="0 0 24 24"
       fill="none"
-      stroke={active ? "#e94560" : "#5a6478"}
+      stroke={active ? "#c41e3a" : "#4a4f5e"}
       strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
-      style={{ flexShrink: 0, transition: "stroke 0.2s ease" }}
+      style={{ flexShrink: 0, transition: "stroke 0.15s ease" }}
     >
       <path d={path} />
     </svg>
@@ -79,12 +73,11 @@ export default function AppSidebar({ children }: { children: React.ReactNode }) 
 
   return (
     <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
-      {/* Sidebar */}
       <aside
         style={{
-          width: "240px",
-          background: "#08081a",
-          borderRight: "1px solid rgba(255,255,255,0.04)",
+          width: "220px",
+          background: "#060612",
+          borderRight: "1px solid rgba(255,255,255,0.03)",
           display: "flex",
           flexDirection: "column",
           flexShrink: 0,
@@ -94,51 +87,39 @@ export default function AppSidebar({ children }: { children: React.ReactNode }) 
       >
         {/* Logo */}
         <Link
-          href="/"
+          href="/dashboard"
           style={{
             display: "flex",
             alignItems: "center",
             gap: "10px",
-            padding: "24px 20px 28px",
+            padding: "22px 18px 30px",
             textDecoration: "none",
           }}
         >
           <KansaLogo />
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            <span style={{
-              fontSize: "17px",
-              fontWeight: 700,
-              color: "#f1f5f9",
-              letterSpacing: "-0.4px",
-              lineHeight: 1,
-            }}>
-              Kansa
-            </span>
-            <span style={{
-              fontSize: "10px",
-              fontWeight: 500,
-              color: "#475569",
-              letterSpacing: "0.5px",
-              marginTop: "2px",
-            }}>
-              AI Commerce
-            </span>
-          </div>
+          <span style={{
+            fontSize: "16px",
+            fontWeight: 700,
+            color: "#e8e8ed",
+            letterSpacing: "-0.3px",
+          }}>
+            Kansa
+          </span>
         </Link>
 
-        {/* Nav sections */}
-        <nav style={{ padding: "0 12px", flex: 1 }}>
+        {/* Nav */}
+        <nav style={{ padding: "0 10px", flex: 1 }}>
           {SECTIONS.map((section, si) => (
-            <div key={section.label} style={{ marginBottom: si < SECTIONS.length - 1 ? "24px" : "0" }}>
+            <div key={section.label} style={{ marginBottom: si < SECTIONS.length - 1 ? "20px" : "0" }}>
               <div
                 style={{
                   fontSize: "10px",
                   fontWeight: 600,
-                  color: "#3a4250",
+                  color: "#2e3340",
                   textTransform: "uppercase",
                   letterSpacing: "1.2px",
-                  paddingLeft: "12px",
-                  marginBottom: "6px",
+                  paddingLeft: "10px",
+                  marginBottom: "4px",
                 }}
               >
                 {section.label}
@@ -153,15 +134,15 @@ export default function AppSidebar({ children }: { children: React.ReactNode }) 
                       style={{
                         display: "flex",
                         alignItems: "center",
-                        gap: "10px",
-                        padding: "8px 12px",
-                        borderRadius: "8px",
-                        color: active ? "#f1f5f9" : "#7a8494",
-                        background: active ? "rgba(233, 69, 96, 0.08)" : "transparent",
+                        gap: "9px",
+                        padding: "7px 10px",
+                        borderRadius: "6px",
+                        color: active ? "#e8e8ed" : "#6b7280",
+                        background: active ? "rgba(196, 30, 58, 0.06)" : "transparent",
                         fontSize: "13px",
                         textDecoration: "none",
-                        fontWeight: active ? 600 : 450,
-                        transition: "all 0.15s ease",
+                        fontWeight: active ? 600 : 400,
+                        transition: "all 0.12s ease",
                         cursor: "pointer",
                         position: "relative",
                       }}
@@ -173,10 +154,10 @@ export default function AppSidebar({ children }: { children: React.ReactNode }) 
                             left: "0",
                             top: "50%",
                             transform: "translateY(-50%)",
-                            width: "3px",
-                            height: "16px",
-                            borderRadius: "0 3px 3px 0",
-                            background: "#e94560",
+                            width: "2px",
+                            height: "14px",
+                            borderRadius: "0 2px 2px 0",
+                            background: "#c41e3a",
                           }}
                         />
                       )}
@@ -190,54 +171,38 @@ export default function AppSidebar({ children }: { children: React.ReactNode }) 
           ))}
         </nav>
 
-        {/* Bottom section */}
-        <div style={{ padding: "16px 12px" }}>
-          <div
+        {/* Upgrade */}
+        <div style={{ padding: "14px 10px" }}>
+          <Link
+            href="/pricing"
             style={{
-              padding: "16px",
-              borderRadius: "12px",
-              background: "linear-gradient(135deg, rgba(233,69,96,0.06), rgba(139,92,246,0.04))",
-              border: "1px solid rgba(233,69,96,0.08)",
+              display: "block",
+              padding: "14px",
+              borderRadius: "8px",
+              background: "rgba(196, 30, 58, 0.05)",
+              border: "1px solid rgba(196, 30, 58, 0.08)",
+              textDecoration: "none",
             }}
           >
-            <p style={{ fontSize: "12px", fontWeight: 600, color: "#e2e8f0", marginBottom: "4px" }}>
+            <p style={{ fontSize: "12px", fontWeight: 600, color: "#d1d5db", marginBottom: "3px" }}>
               Upgrade to Pro
             </p>
-            <p style={{ fontSize: "11px", color: "#525c6c", marginBottom: "12px", lineHeight: 1.4 }}>
-              Unlimited optimizations, image gen, and more.
+            <p style={{ fontSize: "11px", color: "#4a4f5e", lineHeight: 1.4 }}>
+              Unlimited AI optimizations
             </p>
-            <Link
-              href="/pricing"
-              style={{
-                display: "block",
-                textAlign: "center",
-                background: "#e94560",
-                borderRadius: "8px",
-                color: "#fff",
-                padding: "8px 0",
-                fontSize: "12px",
-                fontWeight: 600,
-                textDecoration: "none",
-                cursor: "pointer",
-                transition: "opacity 0.15s",
-              }}
-            >
-              View Plans
-            </Link>
-          </div>
+          </Link>
         </div>
       </aside>
 
-      {/* Main content */}
       <main
         style={{
           flex: 1,
           overflowY: "auto",
           height: "100vh",
-          background: "#0a0a18",
+          background: "#0a0a16",
         }}
       >
-        <div style={{ padding: "32px 40px", maxWidth: "1400px" }}>
+        <div style={{ padding: "28px 36px" }}>
           {children}
         </div>
       </main>

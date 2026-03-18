@@ -91,7 +91,7 @@ function SettingsContent() {
             </h3>
             <p style={{ fontSize: "13px", color: "#64748b" }}>
               Used by Copywriter, Spy, and Strategist agents. Get one at{" "}
-              <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" style={{ color: "#e94560", textDecoration: "none" }}>
+              <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" style={{ color: "#c41e3a", textDecoration: "none" }}>
                 platform.openai.com
               </a>
             </p>
@@ -147,7 +147,7 @@ function SettingsContent() {
             </h3>
             <p style={{ fontSize: "13px", color: "#64748b" }}>
               Optional — use Claude instead of GPT for agent reasoning. Get one at{" "}
-              <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener" style={{ color: "#e94560", textDecoration: "none" }}>
+              <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener" style={{ color: "#c41e3a", textDecoration: "none" }}>
                 console.anthropic.com
               </a>
             </p>
@@ -203,7 +203,7 @@ function SettingsContent() {
             </h3>
             <p style={{ fontSize: "13px", color: "#64748b" }}>
               Powers AI image generation (Nano Banana) and video (Veo). Get one at{" "}
-              <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style={{ color: "#e94560", textDecoration: "none" }}>
+              <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style={{ color: "#c41e3a", textDecoration: "none" }}>
                 aistudio.google.com
               </a>
             </p>

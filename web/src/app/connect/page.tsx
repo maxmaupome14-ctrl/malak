@@ -57,7 +57,7 @@ function StepIndicator({ currentStep }: { currentStep: number }) {
                   currentStep > step.num
                     ? "#22c55e"
                     : currentStep === step.num
-                    ? "#e94560"
+                    ? "#c41e3a"
                     : "#1a1a2e",
                 color:
                   currentStep >= step.num ? "#fff" : "#64748b",
@@ -203,7 +203,7 @@ function SuccessScreen({ storeName }: { storeName: string }) {
           width: "40px",
           height: "40px",
           border: "3px solid #334155",
-          borderTop: "3px solid #e94560",
+          borderTop: "3px solid #c41e3a",
           borderRadius: "50%",
           animation: "spin 0.8s linear infinite",
           margin: "0 auto",
@@ -248,8 +248,8 @@ function MethodSelector({
             onClick={() => onSelect(m.key)}
             style={{
               position: "relative",
-              background: isActive ? "rgba(233, 69, 96, 0.08)" : "#16162a",
-              border: isActive ? "2px solid #e94560" : "2px solid #1e293b",
+              background: isActive ? "rgba(196, 30, 58, 0.08)" : "#16162a",
+              border: isActive ? "2px solid #c41e3a" : "2px solid #1e293b",
               borderRadius: "12px",
               padding: "20px 18px",
               textAlign: "left",
@@ -264,7 +264,7 @@ function MethodSelector({
                   position: "absolute",
                   top: "10px",
                   right: "10px",
-                  background: isActive ? "#e94560" : "#334155",
+                  background: isActive ? "#c41e3a" : "#334155",
                   color: "#fff",
                   fontSize: "10px",
                   fontWeight: 700,
@@ -283,7 +283,7 @@ function MethodSelector({
                 width: "20px",
                 height: "20px",
                 borderRadius: "50%",
-                border: isActive ? "2px solid #e94560" : "2px solid #475569",
+                border: isActive ? "2px solid #c41e3a" : "2px solid #475569",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -297,7 +297,7 @@ function MethodSelector({
                     width: "10px",
                     height: "10px",
                     borderRadius: "50%",
-                    background: "#e94560",
+                    background: "#c41e3a",
                   }}
                 />
               )}
@@ -644,7 +644,7 @@ function ConnectContent() {
                   boxSizing: "border-box",
                   opacity: loading ? 0.6 : 1,
                 }}
-                onFocus={(e) => (e.target.style.borderColor = "#e94560")}
+                onFocus={(e) => (e.target.style.borderColor = "#c41e3a")}
                 onBlur={(e) => (e.target.style.borderColor = "#334155")}
               />
               <p
@@ -659,7 +659,7 @@ function ConnectContent() {
                 Find your domain in your Shopify admin URL:{" "}
                 <span style={{ color: "#94a3b8", fontFamily: "monospace", fontSize: "11px" }}>
                   https://admin.shopify.com/store/
-                  <strong style={{ color: "#e94560" }}>YOUR-STORE</strong>
+                  <strong style={{ color: "#c41e3a" }}>YOUR-STORE</strong>
                 </span>
               </p>
             </div>
@@ -699,7 +699,7 @@ function ConnectContent() {
                     boxSizing: "border-box",
                     opacity: loading ? 0.6 : 1,
                   }}
-                  onFocus={(e) => (e.target.style.borderColor = "#e94560")}
+                  onFocus={(e) => (e.target.style.borderColor = "#c41e3a")}
                   onBlur={(e) => (e.target.style.borderColor = "#334155")}
                 />
                 <p
@@ -726,7 +726,7 @@ function ConnectContent() {
                 padding: "13px 20px",
                 background: loading
                   ? "linear-gradient(135deg, #7a2535, #5e1c2a)"
-                  : "linear-gradient(135deg, #e94560, #c73650)",
+                  : "linear-gradient(135deg, #c41e3a, #c73650)",
                 border: "none",
                 borderRadius: "10px",
                 color: "#fff",

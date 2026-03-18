@@ -175,8 +175,8 @@ function VaultContent() {
                 fontWeight: 600,
                 border: "none",
                 cursor: "pointer",
-                background: filter === f ? "rgba(233, 69, 96, 0.1)" : "transparent",
-                color: filter === f ? "#e94560" : "#5a6478",
+                background: filter === f ? "rgba(196, 30, 58, 0.1)" : "transparent",
+                color: filter === f ? "#c41e3a" : "#5a6478",
                 transition: "all 0.15s",
               }}
             >
@@ -252,7 +252,7 @@ function VaultContent() {
               width: "32px",
               height: "32px",
               border: "2px solid rgba(255,255,255,0.06)",
-              borderTopColor: "#e94560",
+              borderTopColor: "#c41e3a",
               borderRadius: "50%",
               animation: "spin 1s linear infinite",
               margin: "0 auto 16px",
