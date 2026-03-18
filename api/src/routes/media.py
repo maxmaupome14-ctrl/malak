@@ -355,7 +355,9 @@ async def upload_image_to_shopify(
     """
     product, store = await _get_product_and_store(body.product_id, user, session)
 
-    if not store or not store.access_token:
+    access_token = (store.credentials or {}).get("access_token") if store else None
+    shop_domain = ((store.credentials or {}).get("shop_domain") or store.store_url) if store else None
+    if not store or not access_token:
         raise HTTPException(status_code=400, detail="Store not connected")
 
     try:
@@ -363,8 +365,7 @@ async def upload_image_to_shopify(
     except (ValueError, TypeError):
         return UploadImageResponse(ok=False, message=f"Invalid product ID: {product.platform_id}")
 
-    shop_domain = store.platform_domain
-    client = ShopifyClient(shop_domain, store.access_token)
+    client = ShopifyClient(shop_domain, access_token)
 
     # Use same IPv4-forced transport as other Shopify calls
     transport = httpx.AsyncHTTPTransport(local_address="0.0.0.0")
@@ -602,7 +603,9 @@ async def upload_vault_to_shopify(
 
     product, store = await _get_product_and_store(product_id, user, session)
 
-    if not store or not store.access_token:
+    access_token = (store.credentials or {}).get("access_token") if store else None
+    shop_domain = ((store.credentials or {}).get("shop_domain") or store.store_url) if store else None
+    if not store or not access_token:
         raise HTTPException(status_code=400, detail="Store not connected")
 
     try:
@@ -610,7 +613,7 @@ async def upload_vault_to_shopify(
     except (ValueError, TypeError):
         return UploadImageResponse(ok=False, message=f"Invalid product ID: {product.platform_id}")
 
-    client = ShopifyClient(store.platform_domain, store.access_token)
+    client = ShopifyClient(shop_domain, access_token)
     transport = httpx.AsyncHTTPTransport(local_address="0.0.0.0")
 
     try:

@@ -101,10 +101,12 @@ async def shopify_subscribe(
     store = result.scalar_one_or_none()
     if not store:
         raise HTTPException(status_code=404, detail="Store not found")
-    if not store.access_token:
+    access_token = (store.credentials or {}).get("access_token")
+    shop_domain = (store.credentials or {}).get("shop_domain") or store.store_url
+    if not access_token:
         raise HTTPException(status_code=400, detail="Store not connected (no access token)")
 
-    client = ShopifyClient(store.platform_domain, store.access_token)
+    client = ShopifyClient(shop_domain, access_token)
 
     is_test = not settings.is_production
     return_url = f"{settings.API_URL}/billing/shopify/callback?store_id={store.id}&user_id={user.id}"
@@ -158,7 +160,9 @@ async def shopify_billing_callback(
         raise HTTPException(status_code=400, detail="No pending subscription found")
 
     # Verify with Shopify
-    client = ShopifyClient(store.platform_domain, store.access_token)
+    access_token = (store.credentials or {}).get("access_token")
+    shop_domain = (store.credentials or {}).get("shop_domain") or store.store_url
+    client = ShopifyClient(shop_domain, access_token)
     try:
         sub_data = await client.get_subscription_status(subscription_id)
     except Exception as e:
@@ -215,8 +219,10 @@ async def shopify_billing_status(
         return ShopifyBillingStatus(has_shopify_subscription=False)
 
     # Check live status from Shopify
+    access_token = (store.credentials or {}).get("access_token")
+    shop_domain = (store.credentials or {}).get("shop_domain") or store.store_url
     try:
-        client = ShopifyClient(store.platform_domain, store.access_token)
+        client = ShopifyClient(shop_domain, access_token)
         sub_data = await client.get_subscription_status(sub_id)
         return ShopifyBillingStatus(
             has_shopify_subscription=True,

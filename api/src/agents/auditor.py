@@ -154,8 +154,16 @@ def score_pricing(product: dict) -> tuple[int, list[str], list[str]]:
 
     price = product.get("price")
     original_price = product.get("original_price")
+    platform = product.get("platform", "")
 
     if price is None:
+        # Amazon defers price to JS — it IS displayed on the live page,
+        # we just can't extract it. Don't penalize heavily.
+        if platform == "amazon":
+            return 50, ["Price is displayed on the live listing"], [
+                "Price could not be extracted (Amazon renders it via JavaScript) — "
+                "score for this dimension is estimated"
+            ]
         return 20, [], ["Price not found or not displayed — critical for conversion"]
 
     score += 40  # Price exists
