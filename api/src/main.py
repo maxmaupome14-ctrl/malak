@@ -30,6 +30,7 @@ from src.routes.reviews import router as reviews_router
 from src.routes.marketing import router as marketing_router
 from src.routes.webhooks import router as webhooks_router
 from src.routes.shopify_billing import router as shopify_billing_router
+from src.routes.media import router as media_router
 
 
 @asynccontextmanager
@@ -94,6 +95,7 @@ app.include_router(reviews_router, prefix="/reviews", tags=["reviews"])
 app.include_router(marketing_router, prefix="/marketing", tags=["marketing"])
 app.include_router(webhooks_router, tags=["webhooks"])
 app.include_router(shopify_billing_router, prefix="/billing", tags=["shopify-billing"])
+app.include_router(media_router, prefix="/media", tags=["media"])
 
 
 # ── Health Check ──────────────────────────────────────

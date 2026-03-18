@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     OPENAI_BASE_URL: str | None = None
     ANTHROPIC_API_KEY: str | None = None
 
+    # ── Google AI (Nano Banana / Gemini) ────────────
+    GOOGLE_AI_API_KEY: str = ""
+
     # ── Shopify ─────────────────────────────────────
     SHOPIFY_CLIENT_ID: str = ""
     SHOPIFY_CLIENT_SECRET: str = ""
