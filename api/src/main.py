@@ -50,6 +50,19 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             async with engine.begin() as conn:
                 await conn.run_sync(Base.metadata.create_all)
             print("[BOOT] Database tables created/verified successfully")
+
+            # Add new columns to existing tables (create_all doesn't do ALTER)
+            from sqlalchemy import text
+            async with engine.begin() as conn:
+                migrations = [
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS google_ai_api_key TEXT",
+                ]
+                for sql in migrations:
+                    try:
+                        await conn.execute(text(sql))
+                    except Exception:
+                        pass  # Column already exists or other non-critical error
+            print("[BOOT] Schema migrations applied")
         except Exception as e:
             print(f"[BOOT] Database setup warning: {str(e)[:200]}")
     print(f"[BOOT] Shopify OAuth configured: {'YES' if settings.SHOPIFY_CLIENT_ID else 'NO'}")
