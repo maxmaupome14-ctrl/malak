@@ -37,6 +37,34 @@ interface ConnectedStore {
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
+/** Compress a base64 image to max 1200px and JPEG quality 85% for upload */
+function compressImage(base64: string, maxSize = 1200, quality = 0.85): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      let { width, height } = img;
+      if (width > maxSize || height > maxSize) {
+        if (width > height) {
+          height = Math.round((height * maxSize) / width);
+          width = maxSize;
+        } else {
+          width = Math.round((width * maxSize) / height);
+          height = maxSize;
+        }
+      }
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(img, 0, 0, width, height);
+      const compressed = canvas.toDataURL("image/jpeg", quality);
+      // Strip data:image/jpeg;base64, prefix
+      resolve(compressed.split(",")[1]);
+    };
+    img.src = `data:image/png;base64,${base64}`;
+  });
+}
+
 function scoreColor(score: number | null): string {
   if (score === null) return "#64748b";
   if (score >= 75) return "#22c55e";
@@ -255,12 +283,14 @@ function ProductsContent() {
     setUploadingImage(index);
     setUploadStatus(null);
     try {
+      // Compress image before uploading to avoid payload size issues
+      const compressed = await compressImage(imageBase64);
       const res = await api.post<{ ok: boolean; message: string; shopify_image_id: number | null }>(
         "/media/upload-image",
         {
           product_id: selectedProduct.id,
-          image_base64: imageBase64,
-          filename: `${selectedProduct.title || "product"}-ai-${index + 1}.png`,
+          image_base64: compressed,
+          filename: `${selectedProduct.title || "product"}-ai-${index + 1}.jpg`,
           replace_index: replaceIndex,
         }
       );
@@ -424,21 +454,16 @@ function ProductsContent() {
             return (
               <div
                 key={product.id}
+                className="card-hover"
                 style={{
-                  background: "#16162a",
+                  background: "#12122a",
                   borderRadius: "12px",
-                  border: "1px solid #1e293b",
+                  border: "1px solid rgba(255,255,255,0.06)",
                   padding: "0",
                   overflow: "hidden",
                   display: "flex",
                   flexDirection: "column",
-                  transition: "border-color 0.15s",
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLDivElement).style.borderColor = "#334155";
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLDivElement).style.borderColor = "#1e293b";
+                  cursor: "pointer",
                 }}
               >
                 {/* Image — clickable to detail page */}

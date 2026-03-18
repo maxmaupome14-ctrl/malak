@@ -120,24 +120,29 @@ def _build_prompt(product: Product, style: str, custom_prompt: str | None) -> st
 
     style_prompts = {
         "product": (
-            f"Using the reference product image, create a professional ecommerce product photo "
-            f"of this exact same product ({title}). Keep the product identical — same shape, "
-            f"colors, labels, packaging. Clean white/neutral background, commercial photography."
+            f"PHOTOREALISTIC professional ecommerce product photograph of this exact same "
+            f"product ({title}). Output must be a real photograph, NOT a sketch, drawing, "
+            f"illustration, or painting. Keep the product identical — same shape, colors, "
+            f"labels, packaging. Clean white/neutral background, DSLR camera, commercial "
+            f"product photography, high resolution, sharp focus, studio lighting."
         ),
         "lifestyle": (
-            f"Using the reference product image, create a lifestyle photo of this exact same "
-            f"product ({title}) in an aspirational natural setting. Keep the product identical. "
-            f"Show it being displayed or used in context. Warm, inviting lighting."
+            f"PHOTOREALISTIC lifestyle photograph of this exact same product ({title}) in "
+            f"an aspirational natural setting. Output must be a real photograph, NOT a sketch "
+            f"or illustration. Keep the product identical. Show it being displayed or used in "
+            f"context. Warm, inviting lighting. DSLR camera quality."
         ),
         "white-background": (
-            f"Using the reference product image, create a pure white background product photo "
-            f"of this exact same product ({title}). Keep the product identical. "
-            f"Amazon/Shopify style. Sharp, well-lit, no shadows, centered."
+            f"PHOTOREALISTIC pure white background product photograph of this exact same "
+            f"product ({title}). Output must be a real photograph, NOT a sketch, drawing, "
+            f"or illustration. Keep the product identical. Amazon/Shopify ecommerce style. "
+            f"Sharp, well-lit, no shadows, centered, DSLR camera quality."
         ),
         "studio": (
-            f"Using the reference product image, create a premium studio product photo "
-            f"of this exact same product ({title}). Keep the product identical. "
-            f"Dramatic lighting, dark gradient background, high-end commercial style."
+            f"PHOTOREALISTIC premium studio product photograph of this exact same product "
+            f"({title}). Output must be a real photograph, NOT a sketch, drawing, or "
+            f"illustration. Keep the product identical. Dramatic studio lighting, dark "
+            f"gradient background, high-end commercial photography, DSLR quality."
         ),
     }
 
