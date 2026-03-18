@@ -327,6 +327,12 @@ function ImageGallery({ images, title }: { images: string[]; title: string }) {
 /*  Product Detail Content                                             */
 /* ------------------------------------------------------------------ */
 
+interface OptimizeResult {
+  original: { title: string; description: string; tags: string };
+  optimized: { title: string; description: string; tags: string };
+  reasoning: string;
+}
+
 function ProductDetailContent() {
   const params = useParams();
   const router = useRouter();
@@ -335,6 +341,31 @@ function ProductDetailContent() {
   const [product, setProduct] = useState<ProductDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Optimize panel state
+  const [showOptimize, setShowOptimize] = useState(false);
+  const [instructions, setInstructions] = useState("");
+  const [generating, setGenerating] = useState(false);
+  const [result, setResult] = useState<OptimizeResult | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editedTitle, setEditedTitle] = useState("");
+  const [editedDescription, setEditedDescription] = useState("");
+  const [editedTags, setEditedTags] = useState("");
+  const [pushing, setPushing] = useState(false);
+  const [pushStatus, setPushStatus] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  // Media state
+  const [generatingImage, setGeneratingImage] = useState(false);
+  const [generatedImages, setGeneratedImages] = useState<string[]>([]);
+  const [imageStyle, setImageStyle] = useState("product");
+  const [imagePrompt, setImagePrompt] = useState("");
+  const [uploadingImage, setUploadingImage] = useState<number | null>(null);
+  const [uploadStatus, setUploadStatus] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [replaceIndex, setReplaceIndex] = useState<number | null>(null);
+  const [editingImage, setEditingImage] = useState(false);
+  const [editImageUrl, setEditImageUrl] = useState("");
+  const [editImageInstructions, setEditImageInstructions] = useState("");
+  const [editedImage, setEditedImage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!productId) return;
@@ -352,6 +383,111 @@ function ProductDetailContent() {
         setLoading(false);
       });
   }, [productId]);
+
+  /* Generate optimization */
+  const handleGenerate = async () => {
+    if (!product) return;
+    setGenerating(true);
+    setResult(null);
+    setPushStatus(null);
+    try {
+      const res = await api.post<OptimizeResult>("/optimize/generate", {
+        product_id: product.id,
+        instructions: instructions || undefined,
+      });
+      setResult(res);
+      setEditedTitle(res.optimized.title);
+      setEditedDescription(res.optimized.description);
+      setEditedTags(res.optimized.tags);
+      setEditMode(false);
+    } catch {
+      alert("Optimization failed. Try again.");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  /* Push to Shopify */
+  const handlePush = async () => {
+    if (!product || !result) return;
+    setPushing(true);
+    setPushStatus(null);
+    try {
+      await api.post("/optimize/push", {
+        product_id: product.id,
+        title: editMode ? editedTitle : result.optimized.title,
+        description: editMode ? editedDescription : result.optimized.description,
+        tags: editMode ? editedTags : result.optimized.tags,
+      });
+      setPushStatus({ ok: true, msg: "Pushed to Shopify successfully!" });
+    } catch {
+      setPushStatus({ ok: false, msg: "Push failed. Check your store connection." });
+    } finally {
+      setPushing(false);
+    }
+  };
+
+  /* Generate AI image */
+  const handleGenerateImage = async () => {
+    if (!product) return;
+    setGeneratingImage(true);
+    setGeneratedImages([]);
+    try {
+      const res = await api.post<{ images: string[]; prompt_used: string }>("/media/generate-image", {
+        product_id: product.id,
+        style: imageStyle,
+        prompt: imagePrompt || undefined,
+        aspect_ratio: "1:1",
+      });
+      setGeneratedImages(res.images);
+    } catch (err: any) {
+      const msg = err?.message || err?.detail || "Unknown error";
+      alert(`Image generation failed: ${msg}`);
+    } finally {
+      setGeneratingImage(false);
+    }
+  };
+
+  /* Upload generated image to Shopify */
+  const handleUploadToShopify = async (imageBase64: string, index: number) => {
+    if (!product) return;
+    setUploadingImage(index);
+    setUploadStatus(null);
+    try {
+      const res = await api.post<{ ok: boolean; message: string }>("/media/upload-image", {
+        product_id: product.id,
+        image_base64: imageBase64,
+        filename: `${product.title || "product"}-ai-${index + 1}.png`,
+        replace_index: replaceIndex,
+      });
+      setUploadStatus({ ok: res.ok, msg: res.message });
+      setReplaceIndex(null);
+    } catch (err: any) {
+      const msg = err?.message || err?.detail || "Upload failed.";
+      setUploadStatus({ ok: false, msg });
+    } finally {
+      setUploadingImage(null);
+    }
+  };
+
+  /* Edit existing image with AI */
+  const handleEditImage = async () => {
+    if (!product || !editImageUrl || !editImageInstructions) return;
+    setEditingImage(true);
+    setEditedImage(null);
+    try {
+      const res = await api.post<{ image: string }>("/media/edit-image", {
+        product_id: product.id,
+        image_url: editImageUrl,
+        instructions: editImageInstructions,
+      });
+      setEditedImage(res.image);
+    } catch (err: any) {
+      alert(`Image editing failed: ${err?.message || "Unknown error"}`);
+    } finally {
+      setEditingImage(false);
+    }
+  };
 
   /* Loading */
   if (loading) {
@@ -671,7 +807,14 @@ function ProductDetailContent() {
           {/* Action buttons */}
           <div style={{ display: "flex", gap: "12px" }}>
             <button
-              onClick={() => router.push(`/products?optimize=${product.id}`)}
+              onClick={() => {
+                setShowOptimize(true);
+                setResult(null);
+                setPushStatus(null);
+                setGeneratedImages([]);
+                setUploadStatus(null);
+                setEditedImage(null);
+              }}
               style={{
                 flex: 1,
                 background: "#e94560",
@@ -969,6 +1112,489 @@ function ProductDetailContent() {
           </div>
         </div>
       </div>
+
+      {/* ============================================================ */}
+      {/*  Optimize Slide-Over Panel                                    */}
+      {/* ============================================================ */}
+      {showOptimize && (
+        <>
+          <div
+            onClick={() => setShowOptimize(false)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.5)",
+              zIndex: 998,
+            }}
+          />
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              right: 0,
+              width: "560px",
+              maxWidth: "100vw",
+              height: "100vh",
+              background: "#0f0f23",
+              borderLeft: "1px solid #1e293b",
+              zIndex: 999,
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+            }}
+          >
+            {/* Panel header */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "20px 24px",
+                borderBottom: "1px solid #1e293b",
+                flexShrink: 0,
+              }}
+            >
+              <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#f1f5f9" }}>
+                Optimize Listing
+              </h2>
+              <button
+                onClick={() => setShowOptimize(false)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#64748b",
+                  fontSize: "24px",
+                  cursor: "pointer",
+                  padding: "0 4px",
+                  lineHeight: 1,
+                }}
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* Panel body */}
+            <div
+              style={{
+                flex: 1,
+                overflowY: "auto",
+                padding: "24px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "20px",
+              }}
+            >
+              {/* Product info */}
+              <div
+                style={{
+                  background: "#16162a",
+                  borderRadius: "12px",
+                  border: "1px solid #1e293b",
+                  padding: "20px",
+                }}
+              >
+                <div style={{ display: "flex", gap: "16px", alignItems: "flex-start" }}>
+                  {product.images[0] ? (
+                    <img
+                      src={product.images[0]}
+                      alt={product.title}
+                      style={{
+                        width: "80px",
+                        height: "80px",
+                        borderRadius: "8px",
+                        objectFit: "cover",
+                        flexShrink: 0,
+                      }}
+                    />
+                  ) : (
+                    <div
+                      style={{
+                        width: "80px",
+                        height: "80px",
+                        borderRadius: "8px",
+                        background: "#1a1a2e",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "32px",
+                        color: "#334155",
+                        flexShrink: 0,
+                      }}
+                    >
+                      &#128247;
+                    </div>
+                  )}
+                  <div style={{ minWidth: 0 }}>
+                    <h3 style={{ fontSize: "15px", fontWeight: 600, color: "#f1f5f9", marginBottom: "4px" }}>
+                      {product.title}
+                    </h3>
+                    {product.brand && (
+                      <p style={{ fontSize: "13px", color: "#64748b", marginBottom: "4px" }}>
+                        {product.brand}
+                      </p>
+                    )}
+                    <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                      {product.price != null && (
+                        <span style={{ fontSize: "14px", fontWeight: 600, color: "#94a3b8" }}>
+                          ${product.price.toFixed(2)}
+                        </span>
+                      )}
+                      <span
+                        style={{
+                          background: platformBadge(product.platform).bg,
+                          borderRadius: "4px",
+                          padding: "2px 8px",
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          color: "#fff",
+                        }}
+                      >
+                        {platformBadge(product.platform).label}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Custom instructions */}
+              <div>
+                <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#94a3b8", marginBottom: "8px" }}>
+                  Custom Instructions (optional)
+                </label>
+                <textarea
+                  value={instructions}
+                  onChange={(e) => setInstructions(e.target.value)}
+                  placeholder="e.g. Focus on SEO keywords, make it more premium..."
+                  rows={3}
+                  style={{
+                    width: "100%",
+                    background: "#1a1a2e",
+                    border: "1px solid #334155",
+                    borderRadius: "8px",
+                    color: "#f1f5f9",
+                    padding: "12px",
+                    fontSize: "14px",
+                    resize: "vertical",
+                    outline: "none",
+                    fontFamily: "inherit",
+                    boxSizing: "border-box",
+                  }}
+                  onFocus={(e) => { e.currentTarget.style.borderColor = "#e94560"; }}
+                  onBlur={(e) => { e.currentTarget.style.borderColor = "#334155"; }}
+                />
+              </div>
+
+              {/* Generate optimization button */}
+              <button
+                onClick={handleGenerate}
+                disabled={generating}
+                style={{
+                  background: generating ? "#334155" : "#e94560",
+                  border: "none",
+                  borderRadius: "8px",
+                  color: "#fff",
+                  padding: "12px 0",
+                  fontSize: "15px",
+                  fontWeight: 600,
+                  cursor: generating ? "not-allowed" : "pointer",
+                  width: "100%",
+                }}
+              >
+                {generating ? "Generating..." : "Generate Optimization"}
+              </button>
+
+              {/* Loading spinner */}
+              {generating && (
+                <div style={{ textAlign: "center", padding: "32px 0", color: "#94a3b8", fontSize: "14px" }}>
+                  <div
+                    style={{
+                      width: "32px",
+                      height: "32px",
+                      border: "3px solid #334155",
+                      borderTop: "3px solid #e94560",
+                      borderRadius: "50%",
+                      margin: "0 auto 16px",
+                      animation: "spin 1s linear infinite",
+                    }}
+                  />
+                  AI is analyzing and optimizing your listing...
+                </div>
+              )}
+
+              {/* Optimization results */}
+              {result && !generating && (
+                <>
+                  {(["title", "description", "tags"] as const).map((field) => (
+                    <div
+                      key={field}
+                      style={{
+                        background: "#16162a",
+                        borderRadius: "12px",
+                        border: "1px solid #1e293b",
+                        padding: "20px",
+                      }}
+                    >
+                      <h4 style={{ fontSize: "13px", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "12px" }}>
+                        {field}
+                      </h4>
+                      <div style={{ marginBottom: "12px" }}>
+                        <span style={{ display: "inline-block", fontSize: "11px", fontWeight: 600, color: "#ef4444", background: "rgba(239,68,68,0.1)", borderRadius: "4px", padding: "2px 8px", marginBottom: "6px" }}>
+                          ORIGINAL
+                        </span>
+                        <p style={{ fontSize: "13px", color: "#64748b", lineHeight: "1.5", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                          {result.original[field] || "(empty)"}
+                        </p>
+                      </div>
+                      <div>
+                        <span style={{ display: "inline-block", fontSize: "11px", fontWeight: 600, color: "#22c55e", background: "rgba(34,197,94,0.1)", borderRadius: "4px", padding: "2px 8px", marginBottom: "6px" }}>
+                          OPTIMIZED
+                        </span>
+                        {editMode ? (
+                          <textarea
+                            value={field === "title" ? editedTitle : field === "description" ? editedDescription : editedTags}
+                            onChange={(e) => {
+                              if (field === "title") setEditedTitle(e.target.value);
+                              else if (field === "description") setEditedDescription(e.target.value);
+                              else setEditedTags(e.target.value);
+                            }}
+                            rows={field === "description" ? 6 : 2}
+                            style={{
+                              width: "100%",
+                              background: "#1a1a2e",
+                              border: "1px solid #334155",
+                              borderRadius: "8px",
+                              color: "#f1f5f9",
+                              padding: "10px 12px",
+                              fontSize: "13px",
+                              resize: "vertical",
+                              outline: "none",
+                              fontFamily: "inherit",
+                              lineHeight: "1.5",
+                              boxSizing: "border-box",
+                            }}
+                          />
+                        ) : (
+                          <p style={{ fontSize: "13px", color: "#f1f5f9", lineHeight: "1.5", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                            {result.optimized[field] || "(empty)"}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* AI Reasoning */}
+                  <div style={{ background: "#16162a", borderRadius: "12px", border: "1px solid #1e293b", padding: "20px" }}>
+                    <h4 style={{ fontSize: "13px", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "8px" }}>
+                      AI Reasoning
+                    </h4>
+                    <p style={{ fontSize: "13px", color: "#94a3b8", lineHeight: "1.6", whiteSpace: "pre-wrap" }}>
+                      {result.reasoning}
+                    </p>
+                  </div>
+
+                  {/* Action buttons */}
+                  <div style={{ display: "flex", gap: "12px" }}>
+                    <button
+                      onClick={() => {
+                        if (editMode) { setEditMode(false); }
+                        else { setEditedTitle(result.optimized.title); setEditedDescription(result.optimized.description); setEditedTags(result.optimized.tags); setEditMode(true); }
+                      }}
+                      style={{ flex: 1, background: "none", border: "1px solid #334155", borderRadius: "8px", color: "#94a3b8", padding: "12px 0", fontSize: "14px", fontWeight: 600, cursor: "pointer" }}
+                    >
+                      {editMode ? "Done Editing" : "Edit"}
+                    </button>
+                    <button
+                      onClick={handlePush}
+                      disabled={pushing}
+                      style={{ flex: 2, background: pushing ? "#334155" : "#e94560", border: "none", borderRadius: "8px", color: "#fff", padding: "12px 0", fontSize: "14px", fontWeight: 600, cursor: pushing ? "not-allowed" : "pointer" }}
+                    >
+                      {pushing ? "Pushing..." : "Push to Shopify"}
+                    </button>
+                  </div>
+
+                  {pushStatus && (
+                    <div
+                      style={{
+                        background: pushStatus.ok ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
+                        border: `1px solid ${pushStatus.ok ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`,
+                        borderRadius: "8px",
+                        padding: "12px 16px",
+                        color: pushStatus.ok ? "#86efac" : "#fca5a5",
+                        fontSize: "14px",
+                        textAlign: "center",
+                      }}
+                    >
+                      {pushStatus.msg}
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* ── AI Image Generation ─────────────────────── */}
+              <div style={{ background: "#16162a", borderRadius: "12px", border: "1px solid #1e293b", padding: "20px" }}>
+                <h4 style={{ fontSize: "13px", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span style={{ fontSize: "16px" }}>&#127912;</span>
+                  AI Image Generation
+                </h4>
+
+                <label style={{ display: "block", fontSize: "12px", color: "#64748b", marginBottom: "6px" }}>Style</label>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "12px" }}>
+                  {[
+                    { id: "product", label: "Product Shot" },
+                    { id: "lifestyle", label: "Lifestyle" },
+                    { id: "white-background", label: "White BG" },
+                    { id: "studio", label: "Studio" },
+                  ].map((s) => (
+                    <button
+                      key={s.id}
+                      onClick={() => setImageStyle(s.id)}
+                      style={{
+                        padding: "8px 12px",
+                        borderRadius: "6px",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        border: imageStyle === s.id ? "1px solid #e94560" : "1px solid #334155",
+                        background: imageStyle === s.id ? "rgba(233,69,96,0.15)" : "#1a1a2e",
+                        color: imageStyle === s.id ? "#e94560" : "#94a3b8",
+                      }}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+
+                <label style={{ display: "block", fontSize: "12px", color: "#64748b", marginBottom: "6px" }}>Custom prompt (optional)</label>
+                <input
+                  type="text"
+                  value={imagePrompt}
+                  onChange={(e) => setImagePrompt(e.target.value)}
+                  placeholder="e.g. Product on marble countertop with plants..."
+                  style={{ width: "100%", background: "#1a1a2e", border: "1px solid #334155", borderRadius: "8px", color: "#f1f5f9", padding: "10px 12px", fontSize: "13px", outline: "none", fontFamily: "inherit", boxSizing: "border-box", marginBottom: "12px" }}
+                />
+
+                <button
+                  onClick={handleGenerateImage}
+                  disabled={generatingImage}
+                  style={{ width: "100%", background: generatingImage ? "#334155" : "linear-gradient(135deg, #4285f4, #34a853)", border: "none", borderRadius: "8px", color: "#fff", padding: "10px 0", fontSize: "14px", fontWeight: 600, cursor: generatingImage ? "not-allowed" : "pointer" }}
+                >
+                  {generatingImage ? "Generating with Nano Banana..." : "Generate AI Image"}
+                </button>
+
+                {/* Generated images */}
+                {generatedImages.length > 0 && (
+                  <div style={{ marginTop: "16px", display: "flex", flexDirection: "column", gap: "12px" }}>
+                    {generatedImages.map((img, i) => (
+                      <div key={i}>
+                        <img
+                          src={`data:image/png;base64,${img}`}
+                          alt={`Generated ${i + 1}`}
+                          style={{ width: "100%", borderRadius: "8px", border: "1px solid #334155" }}
+                        />
+                        <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+                          <a
+                            href={`data:image/png;base64,${img}`}
+                            download={`${product.title}-ai-${i + 1}.png`}
+                            style={{ flex: 1, background: "#1a1a2e", border: "1px solid #334155", borderRadius: "6px", color: "#94a3b8", padding: "8px 0", fontSize: "12px", fontWeight: 600, textDecoration: "none", textAlign: "center" }}
+                          >
+                            Download
+                          </a>
+                          <button
+                            onClick={() => handleUploadToShopify(img, i)}
+                            disabled={uploadingImage === i}
+                            style={{ flex: 2, background: uploadingImage === i ? "#334155" : "linear-gradient(135deg, #96bf48, #5e8e3e)", border: "none", borderRadius: "6px", color: "#fff", padding: "8px 0", fontSize: "12px", fontWeight: 600, cursor: uploadingImage === i ? "not-allowed" : "pointer" }}
+                          >
+                            {uploadingImage === i ? "Uploading..." : "Upload to Shopify"}
+                          </button>
+                        </div>
+                        <div style={{ marginTop: "6px" }}>
+                          <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "11px", color: "#64748b" }}>
+                            <input type="checkbox" checked={replaceIndex !== null} onChange={(e) => setReplaceIndex(e.target.checked ? 0 : null)} style={{ accentColor: "#e94560" }} />
+                            Replace existing image at position:
+                            {replaceIndex !== null && (
+                              <input type="number" min={0} value={replaceIndex} onChange={(e) => setReplaceIndex(parseInt(e.target.value) || 0)} style={{ width: "48px", background: "#1a1a2e", border: "1px solid #334155", borderRadius: "4px", color: "#f1f5f9", padding: "2px 6px", fontSize: "11px", textAlign: "center" }} />
+                            )}
+                          </label>
+                        </div>
+                      </div>
+                    ))}
+
+                    {uploadStatus && (
+                      <div style={{ background: uploadStatus.ok ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)", border: `1px solid ${uploadStatus.ok ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`, borderRadius: "8px", padding: "10px 14px", color: uploadStatus.ok ? "#86efac" : "#fca5a5", fontSize: "13px", textAlign: "center" }}>
+                        {uploadStatus.msg}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* ── AI Image Editing ───────────────────────── */}
+              <div style={{ background: "#16162a", borderRadius: "12px", border: "1px solid #1e293b", padding: "20px" }}>
+                <h4 style={{ fontSize: "13px", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span style={{ fontSize: "16px" }}>&#9999;&#65039;</span>
+                  Edit Existing Image
+                </h4>
+
+                <label style={{ display: "block", fontSize: "12px", color: "#64748b", marginBottom: "6px" }}>Image URL</label>
+                <input
+                  type="text"
+                  value={editImageUrl}
+                  onChange={(e) => setEditImageUrl(e.target.value)}
+                  placeholder={product.images[0] || "https://cdn.shopify.com/..."}
+                  style={{ width: "100%", background: "#1a1a2e", border: "1px solid #334155", borderRadius: "8px", color: "#f1f5f9", padding: "10px 12px", fontSize: "13px", outline: "none", fontFamily: "inherit", boxSizing: "border-box", marginBottom: "10px" }}
+                />
+                {product.images[0] && !editImageUrl && (
+                  <button
+                    onClick={() => setEditImageUrl(product.images[0])}
+                    style={{ background: "none", border: "none", color: "#e94560", fontSize: "12px", cursor: "pointer", padding: "0", marginBottom: "10px" }}
+                  >
+                    Use current product image
+                  </button>
+                )}
+
+                <label style={{ display: "block", fontSize: "12px", color: "#64748b", marginBottom: "6px" }}>Edit instructions</label>
+                <input
+                  type="text"
+                  value={editImageInstructions}
+                  onChange={(e) => setEditImageInstructions(e.target.value)}
+                  placeholder="e.g. Remove background, add shadow..."
+                  style={{ width: "100%", background: "#1a1a2e", border: "1px solid #334155", borderRadius: "8px", color: "#f1f5f9", padding: "10px 12px", fontSize: "13px", outline: "none", fontFamily: "inherit", boxSizing: "border-box", marginBottom: "12px" }}
+                />
+
+                <button
+                  onClick={handleEditImage}
+                  disabled={editingImage || !editImageUrl || !editImageInstructions}
+                  style={{ width: "100%", background: editingImage || !editImageUrl || !editImageInstructions ? "#334155" : "linear-gradient(135deg, #f59e0b, #d97706)", border: "none", borderRadius: "8px", color: "#fff", padding: "10px 0", fontSize: "14px", fontWeight: 600, cursor: editingImage || !editImageUrl || !editImageInstructions ? "not-allowed" : "pointer" }}
+                >
+                  {editingImage ? "Editing with AI..." : "Edit Image"}
+                </button>
+
+                {editedImage && (
+                  <div style={{ marginTop: "16px" }}>
+                    <img src={`data:image/png;base64,${editedImage}`} alt="Edited" style={{ width: "100%", borderRadius: "8px", border: "1px solid #334155" }} />
+                    <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+                      <a
+                        href={`data:image/png;base64,${editedImage}`}
+                        download={`${product.title}-edited.png`}
+                        style={{ flex: 1, background: "#1a1a2e", border: "1px solid #334155", borderRadius: "6px", color: "#94a3b8", padding: "8px 0", fontSize: "12px", fontWeight: 600, textDecoration: "none", textAlign: "center" }}
+                      >
+                        Download
+                      </a>
+                      <button
+                        onClick={() => handleUploadToShopify(editedImage, 99)}
+                        disabled={uploadingImage === 99}
+                        style={{ flex: 2, background: uploadingImage === 99 ? "#334155" : "linear-gradient(135deg, #96bf48, #5e8e3e)", border: "none", borderRadius: "6px", color: "#fff", padding: "8px 0", fontSize: "12px", fontWeight: 600, cursor: uploadingImage === 99 ? "not-allowed" : "pointer" }}
+                      >
+                        {uploadingImage === 99 ? "Uploading..." : "Upload to Shopify"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

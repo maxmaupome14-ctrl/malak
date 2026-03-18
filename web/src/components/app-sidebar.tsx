@@ -18,7 +18,7 @@ export default function AppSidebar({ children }: { children: React.ReactNode }) 
   const pathname = usePathname();
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh" }}>
+    <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
       <aside
         style={{
           width: "260px",
@@ -28,6 +28,7 @@ export default function AppSidebar({ children }: { children: React.ReactNode }) 
           display: "flex",
           flexDirection: "column",
           flexShrink: 0,
+          overflowY: "auto",
         }}
       >
         {/* Logo */}
@@ -121,7 +122,7 @@ export default function AppSidebar({ children }: { children: React.ReactNode }) 
         </div>
       </aside>
 
-      <main style={{ flex: 1, padding: "32px", overflowY: "auto" }}>
+      <main style={{ flex: 1, padding: "32px", overflowY: "auto", height: "100vh" }}>
         {children}
       </main>
     </div>
