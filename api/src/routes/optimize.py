@@ -179,7 +179,7 @@ async def _call_anthropic(api_key: str, system: str, user_msg: str) -> dict:
 
     client = anthropic.AsyncAnthropic(api_key=api_key)
     response = await client.messages.create(
-        model="claude-haiku-4-5-20251001",
+        model="claude-sonnet-4-6-20250514",
         max_tokens=2048,
         system=system,
         messages=[
@@ -237,30 +237,32 @@ async def generate_optimization(
     if not store:
         raise HTTPException(status_code=404, detail="Store not found")
 
-    # Check user has an API key
-    has_openai = bool(user.openai_api_key)
-    has_anthropic = bool(user.anthropic_api_key)
+    # Resolve AI key — server keys first, then BYOK fallback
+    from src.config import settings as app_settings
 
-    if not has_openai and not has_anthropic:
+    anthropic_key = app_settings.ANTHROPIC_API_KEY or user.anthropic_api_key
+    openai_key = app_settings.OPENAI_API_KEY or user.openai_api_key
+
+    if not anthropic_key and not openai_key:
         raise HTTPException(
             status_code=400,
-            detail="No API key configured. Add an OpenAI or Anthropic key in Settings.",
+            detail="AI service not available. Contact support.",
         )
 
     # Build the prompt
     user_prompt = _build_user_prompt(product, body.instructions)
 
-    # Call AI (prefer OpenAI if both keys exist)
+    # Call AI (prefer Anthropic Claude Sonnet for best quality)
     try:
-        if has_openai:
-            logger.info("Calling OpenAI for product %s", product.id)
-            ai_result = await _call_openai(
-                user.openai_api_key, SYSTEM_PROMPT, user_prompt
+        if anthropic_key:
+            logger.info("Calling Claude Sonnet for product %s", product.id)
+            ai_result = await _call_anthropic(
+                anthropic_key, SYSTEM_PROMPT, user_prompt
             )
         else:
-            logger.info("Calling Anthropic for product %s", product.id)
-            ai_result = await _call_anthropic(
-                user.anthropic_api_key, SYSTEM_PROMPT, user_prompt
+            logger.info("Calling OpenAI for product %s", product.id)
+            ai_result = await _call_openai(
+                openai_key, SYSTEM_PROMPT, user_prompt
             )
     except ValueError as exc:
         logger.error("Failed to parse AI response for product %s: %s", product.id, exc)
@@ -401,13 +403,15 @@ async def bulk_generate_optimization(
     if not body.product_ids:
         raise HTTPException(status_code=400, detail="product_ids must not be empty")
 
-    # Verify user has an API key before processing anything
-    has_openai = bool(user.openai_api_key)
-    has_anthropic = bool(user.anthropic_api_key)
-    if not has_openai and not has_anthropic:
+    # Resolve AI keys — server first, then BYOK
+    from src.config import settings as app_settings
+
+    anthropic_key = app_settings.ANTHROPIC_API_KEY or user.anthropic_api_key
+    openai_key = app_settings.OPENAI_API_KEY or user.openai_api_key
+    if not anthropic_key and not openai_key:
         raise HTTPException(
             status_code=400,
-            detail="No API key configured. Add an OpenAI or Anthropic key in Settings.",
+            detail="AI service not available. Contact support.",
         )
 
     results: list[dict] = []
@@ -445,15 +449,15 @@ async def bulk_generate_optimization(
             # Build prompt and call AI
             user_prompt = _build_user_prompt(product, body.instructions)
 
-            if has_openai:
-                logger.info("Bulk: calling OpenAI for product %s", product.id)
-                ai_result = await _call_openai(
-                    user.openai_api_key, SYSTEM_PROMPT, user_prompt
+            if anthropic_key:
+                logger.info("Bulk: calling Claude Sonnet for product %s", product.id)
+                ai_result = await _call_anthropic(
+                    anthropic_key, SYSTEM_PROMPT, user_prompt
                 )
             else:
-                logger.info("Bulk: calling Anthropic for product %s", product.id)
-                ai_result = await _call_anthropic(
-                    user.anthropic_api_key, SYSTEM_PROMPT, user_prompt
+                logger.info("Bulk: calling OpenAI for product %s", product.id)
+                ai_result = await _call_openai(
+                    openai_key, SYSTEM_PROMPT, user_prompt
                 )
 
             # Validate required keys
