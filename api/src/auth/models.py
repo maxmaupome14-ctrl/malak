@@ -34,6 +34,7 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     # BYOK — user's own API keys (stored encrypted in prod)
     openai_api_key: Mapped[str | None] = mapped_column(Text, nullable=True)
     anthropic_api_key: Mapped[str | None] = mapped_column(Text, nullable=True)
+    google_ai_api_key: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Billing / Stripe
     stripe_customer_id: Mapped[str | None] = mapped_column(Text, nullable=True)

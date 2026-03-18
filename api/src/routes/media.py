@@ -69,16 +69,17 @@ class GenerateVideoResponse(BaseModel):
 # ── Helpers ───────────────────────────────────────────
 
 
-def _get_google_client():
-    """Initialize Google GenAI client."""
+def _get_google_client(user: "User"):
+    """Initialize Google GenAI client using user's BYOK key or server fallback."""
     from google import genai
 
-    if not settings.GOOGLE_AI_API_KEY:
+    api_key = user.google_ai_api_key or settings.GOOGLE_AI_API_KEY
+    if not api_key:
         raise HTTPException(
             status_code=400,
-            detail="Google AI API key not configured. Add GOOGLE_AI_API_KEY in environment.",
+            detail="No Google AI API key. Add one in Settings to generate images and videos.",
         )
-    return genai.Client(api_key=settings.GOOGLE_AI_API_KEY)
+    return genai.Client(api_key=api_key)
 
 
 def _build_product_image_prompt(product: Product, style: str, custom_prompt: str | None) -> str:
@@ -131,7 +132,7 @@ async def generate_product_image(
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    client = _get_google_client()
+    client = _get_google_client(user)
     prompt = _build_product_image_prompt(product, body.style, body.prompt)
 
     try:
@@ -194,7 +195,7 @@ async def edit_product_image(
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"Failed to fetch image: {exc}")
 
-    client = _get_google_client()
+    client = _get_google_client(user)
 
     try:
         chat = client.chats.create(model="gemini-2.5-flash-preview-04-17")
@@ -244,7 +245,7 @@ async def generate_product_video(
         f"Studio lighting, premium feel."
     )
 
-    client = _get_google_client()
+    client = _get_google_client(user)
 
     try:
         # Veo video generation

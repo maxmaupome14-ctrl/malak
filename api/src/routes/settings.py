@@ -20,14 +20,17 @@ class ApiKeysResponse(BaseModel):
     """Returns masked keys so the frontend can show if they're set."""
     openai_api_key: str | None = None
     anthropic_api_key: str | None = None
+    google_ai_api_key: str | None = None
     has_openai: bool = False
     has_anthropic: bool = False
+    has_google_ai: bool = False
 
 
 class ApiKeysUpdate(BaseModel):
     """Update API keys. Send empty string to clear a key."""
     openai_api_key: str | None = None
     anthropic_api_key: str | None = None
+    google_ai_api_key: str | None = None
 
 
 def _mask_key(key: str | None) -> str | None:
@@ -47,8 +50,10 @@ async def get_api_keys(
     return ApiKeysResponse(
         openai_api_key=_mask_key(user.openai_api_key),
         anthropic_api_key=_mask_key(user.anthropic_api_key),
+        google_ai_api_key=_mask_key(user.google_ai_api_key),
         has_openai=bool(user.openai_api_key),
         has_anthropic=bool(user.anthropic_api_key),
+        has_google_ai=bool(user.google_ai_api_key),
     )
 
 
@@ -63,12 +68,16 @@ async def update_api_keys(
         user.openai_api_key = body.openai_api_key if body.openai_api_key else None
     if body.anthropic_api_key is not None:
         user.anthropic_api_key = body.anthropic_api_key if body.anthropic_api_key else None
+    if body.google_ai_api_key is not None:
+        user.google_ai_api_key = body.google_ai_api_key if body.google_ai_api_key else None
 
     await session.commit()
 
     return ApiKeysResponse(
         openai_api_key=_mask_key(user.openai_api_key),
         anthropic_api_key=_mask_key(user.anthropic_api_key),
+        google_ai_api_key=_mask_key(user.google_ai_api_key),
         has_openai=bool(user.openai_api_key),
         has_anthropic=bool(user.anthropic_api_key),
+        has_google_ai=bool(user.google_ai_api_key),
     )

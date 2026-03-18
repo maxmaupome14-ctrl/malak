@@ -85,6 +85,12 @@ function ProductsContent() {
   const [pushing, setPushing] = useState(false);
   const [pushStatus, setPushStatus] = useState<{ ok: boolean; msg: string } | null>(null);
 
+  // Media generation state
+  const [generatingImage, setGeneratingImage] = useState(false);
+  const [generatedImages, setGeneratedImages] = useState<string[]>([]);
+  const [imageStyle, setImageStyle] = useState("product");
+  const [imagePrompt, setImagePrompt] = useState("");
+
   /* Fetch products + stores on mount */
   useEffect(() => {
     Promise.all([
@@ -128,6 +134,10 @@ function ProductsContent() {
     setPushStatus(null);
     setGenerating(false);
     setPushing(false);
+    setGeneratedImages([]);
+    setGeneratingImage(false);
+    setImagePrompt("");
+    setImageStyle("product");
   };
 
   /* Close panel */
@@ -179,6 +189,26 @@ function ProductsContent() {
       setPushStatus({ ok: false, msg: "Push failed. Check your store connection." });
     } finally {
       setPushing(false);
+    }
+  };
+
+  /* Generate AI image */
+  const handleGenerateImage = async () => {
+    if (!selectedProduct) return;
+    setGeneratingImage(true);
+    setGeneratedImages([]);
+    try {
+      const res = await api.post<{ images: string[]; prompt_used: string }>("/media/generate-image", {
+        product_id: selectedProduct.id,
+        style: imageStyle,
+        prompt: imagePrompt || undefined,
+        aspect_ratio: "1:1",
+      });
+      setGeneratedImages(res.images);
+    } catch {
+      alert("Image generation failed. Make sure you have a Google AI key in Settings.");
+    } finally {
+      setGeneratingImage(false);
     }
   };
 
@@ -921,6 +951,142 @@ function ProductsContent() {
                   )}
                 </>
               )}
+
+              {/* ── AI Image Generation ─────────────────────── */}
+              <div
+                style={{
+                  background: "#16162a",
+                  borderRadius: "12px",
+                  border: "1px solid #1e293b",
+                  padding: "20px",
+                }}
+              >
+                <h4
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: 700,
+                    color: "#94a3b8",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                    marginBottom: "16px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                  }}
+                >
+                  <span style={{ fontSize: "16px" }}>&#127912;</span>
+                  AI Image Generation
+                </h4>
+
+                {/* Style selector */}
+                <label style={{ display: "block", fontSize: "12px", color: "#64748b", marginBottom: "6px" }}>
+                  Style
+                </label>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "12px" }}>
+                  {[
+                    { id: "product", label: "Product Shot" },
+                    { id: "lifestyle", label: "Lifestyle" },
+                    { id: "white-background", label: "White BG" },
+                    { id: "studio", label: "Studio" },
+                  ].map((s) => (
+                    <button
+                      key={s.id}
+                      onClick={() => setImageStyle(s.id)}
+                      style={{
+                        padding: "8px 12px",
+                        borderRadius: "6px",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        border: imageStyle === s.id ? "1px solid #e94560" : "1px solid #334155",
+                        background: imageStyle === s.id ? "rgba(233,69,96,0.15)" : "#1a1a2e",
+                        color: imageStyle === s.id ? "#e94560" : "#94a3b8",
+                      }}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Custom prompt */}
+                <label style={{ display: "block", fontSize: "12px", color: "#64748b", marginBottom: "6px" }}>
+                  Custom prompt (optional)
+                </label>
+                <input
+                  type="text"
+                  value={imagePrompt}
+                  onChange={(e) => setImagePrompt(e.target.value)}
+                  placeholder="e.g. Product on marble countertop with plants..."
+                  style={{
+                    width: "100%",
+                    background: "#1a1a2e",
+                    border: "1px solid #334155",
+                    borderRadius: "8px",
+                    color: "#f1f5f9",
+                    padding: "10px 12px",
+                    fontSize: "13px",
+                    outline: "none",
+                    fontFamily: "inherit",
+                    boxSizing: "border-box",
+                    marginBottom: "12px",
+                  }}
+                />
+
+                <button
+                  onClick={handleGenerateImage}
+                  disabled={generatingImage}
+                  style={{
+                    width: "100%",
+                    background: generatingImage ? "#334155" : "linear-gradient(135deg, #4285f4, #34a853)",
+                    border: "none",
+                    borderRadius: "8px",
+                    color: "#fff",
+                    padding: "10px 0",
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    cursor: generatingImage ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {generatingImage ? "Generating with Nano Banana..." : "Generate AI Image"}
+                </button>
+
+                {/* Generated images */}
+                {generatedImages.length > 0 && (
+                  <div style={{ marginTop: "16px", display: "grid", gridTemplateColumns: "1fr", gap: "12px" }}>
+                    {generatedImages.map((img, i) => (
+                      <div key={i} style={{ position: "relative" }}>
+                        <img
+                          src={`data:image/png;base64,${img}`}
+                          alt={`Generated ${i + 1}`}
+                          style={{
+                            width: "100%",
+                            borderRadius: "8px",
+                            border: "1px solid #334155",
+                          }}
+                        />
+                        <a
+                          href={`data:image/png;base64,${img}`}
+                          download={`${selectedProduct?.title || "product"}-ai-${i + 1}.png`}
+                          style={{
+                            position: "absolute",
+                            bottom: "8px",
+                            right: "8px",
+                            background: "rgba(0,0,0,0.7)",
+                            color: "#fff",
+                            padding: "6px 12px",
+                            borderRadius: "6px",
+                            fontSize: "12px",
+                            fontWeight: 600,
+                            textDecoration: "none",
+                          }}
+                        >
+                          Download
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </>
