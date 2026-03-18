@@ -80,7 +80,12 @@ class BulkPushRequest(BaseModel):
 SYSTEM_PROMPT = (
     "You are Kansa, an AI ecommerce optimization expert. "
     "Analyze the product and generate an optimized version with better SEO, "
-    "clearer descriptions, and more compelling copy. "
+    "clearer descriptions, and more compelling copy.\n\n"
+    "IMPORTANT: The 'description' field must be RICH HTML suitable for Shopify's body_html. "
+    "Use proper formatting: <h3> for section headers, <ul><li> for bullet points, "
+    "<p> for paragraphs, <strong> for emphasis. Structure the description with sections like "
+    "Key Benefits, Product Details, Specifications, etc. Make it visually appealing and scannable — "
+    "NOT a wall of plain text.\n\n"
     "Return ONLY valid JSON with keys: title, description, tags, reasoning. "
     "The tags value must be a comma-separated string. "
     "The reasoning value should explain why these changes help."
