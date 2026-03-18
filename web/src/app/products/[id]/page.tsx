@@ -215,7 +215,7 @@ function ImageGallery({ images, title }: { images: string[]; title: string }) {
           border: "1px solid #1e293b",
         }}
       >
-        <span style={{ fontSize: "72px", color: "#334155" }}>&#128247;</span>
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#2a2a40" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="12" cy="13" r="4" /><path d="M12 3v2" /></svg>
       </div>
     );
   }
@@ -592,7 +592,7 @@ function ProductDetailContent() {
             margin: "0 auto",
           }}
         >
-          <p style={{ fontSize: "48px", marginBottom: "16px" }}>&#9888;&#65039;</p>
+          <div style={{ marginBottom: "16px" }}><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg></div>
           <p style={{ fontSize: "18px", color: "#fca5a5", marginBottom: "8px", fontWeight: 600 }}>
             Product not found
           </p>
@@ -1261,21 +1261,8 @@ function ProductDetailContent() {
                       }}
                     />
                   ) : (
-                    <div
-                      style={{
-                        width: "80px",
-                        height: "80px",
-                        borderRadius: "8px",
-                        background: "#1a1a2e",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: "32px",
-                        color: "#334155",
-                        flexShrink: 0,
-                      }}
-                    >
-                      &#128247;
+                    <div style={{ width: "80px", height: "80px", borderRadius: "8px", background: "#1a1a2e", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#334155" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="12" cy="13" r="4" /><path d="M12 3v2" /></svg>
                     </div>
                   )}
                   <div style={{ minWidth: 0 }}>
@@ -1487,7 +1474,7 @@ function ProductDetailContent() {
               {/* ── AI Image Generation ─────────────────────── */}
               <div style={{ background: "#16162a", borderRadius: "12px", border: "1px solid #1e293b", padding: "20px" }}>
                 <h4 style={{ fontSize: "13px", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
-                  <span style={{ fontSize: "16px" }}>&#127912;</span>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e94560" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.5 4.5H18l-3.5 2.5L16 14.5 12 11.5 8 14.5l1.5-4.5L6 7.5h4.5z" /></svg>
                   AI Image Generation
                 </h4>
 
@@ -1585,7 +1572,7 @@ function ProductDetailContent() {
               {/* ── AI Image Editing ───────────────────────── */}
               <div style={{ background: "#16162a", borderRadius: "12px", border: "1px solid #1e293b", padding: "20px" }}>
                 <h4 style={{ fontSize: "13px", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
-                  <span style={{ fontSize: "16px" }}>&#9999;&#65039;</span>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e94560" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                   Edit Existing Image
                 </h4>
 

@@ -14,27 +14,22 @@ export default function PricingPage() {
           justifyContent: "space-between",
           alignItems: "center",
           padding: "20px 40px",
-          borderBottom: "1px solid #1e293b",
+          borderBottom: "1px solid rgba(255,255,255,0.04)",
         }}
       >
-        <Link href="/" style={{ display: "flex", alignItems: "center", gap: "12px", textDecoration: "none" }}>
-          <div
-            style={{
-              width: "36px",
-              height: "36px",
-              borderRadius: "10px",
-              background: "linear-gradient(135deg, #e94560, #b91c1c)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontWeight: 800,
-              fontSize: "18px",
-              color: "white",
-            }}
-          >
-            K
-          </div>
-          <span style={{ fontSize: "20px", fontWeight: 700, color: "#f1f5f9" }}>Kansa</span>
+        <Link href="/" style={{ display: "flex", alignItems: "center", gap: "10px", textDecoration: "none" }}>
+          <svg width="36" height="36" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="kansa-price-grad" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#e94560" />
+                <stop offset="100%" stopColor="#c2185b" />
+              </linearGradient>
+            </defs>
+            <rect width="32" height="32" rx="8" fill="url(#kansa-price-grad)" />
+            <path d="M11 8v16M11 16l7-8M11 16l7 8" stroke="white" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
+            <circle cx="22" cy="12" r="2" fill="rgba(255,255,255,0.6)" />
+          </svg>
+          <span style={{ fontSize: "20px", fontWeight: 700, color: "#f1f5f9", letterSpacing: "-0.4px" }}>Kansa</span>
         </Link>
         <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
           <Link href="/login" className="btn-secondary">Sign In</Link>
@@ -181,7 +176,7 @@ export default function PricingPage() {
         style={{
           textAlign: "center",
           padding: "32px",
-          borderTop: "1px solid #1e293b",
+          borderTop: "1px solid rgba(255,255,255,0.04)",
           color: "#64748b",
           fontSize: "13px",
         }}

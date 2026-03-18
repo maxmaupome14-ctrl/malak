@@ -6,6 +6,28 @@ import Link from "next/link";
 import { login, register } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
 
+function KansaLogo() {
+  return (
+    <svg width="40" height="40" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="kansa-login-grad" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#e94560" />
+          <stop offset="100%" stopColor="#c2185b" />
+        </linearGradient>
+      </defs>
+      <rect width="32" height="32" rx="8" fill="url(#kansa-login-grad)" />
+      <path
+        d="M11 8v16M11 16l7-8M11 16l7 8"
+        stroke="white"
+        strokeWidth="2.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="22" cy="12" r="2" fill="rgba(255,255,255,0.6)" />
+    </svg>
+  );
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -21,7 +43,6 @@ export default function LoginPage() {
 
     try {
       if (isRegister) {
-        // Register then auto-login
         await register(email, password);
         await login(email, password);
       } else {
@@ -47,9 +68,24 @@ export default function LoginPage() {
         alignItems: "center",
         justifyContent: "center",
         padding: "20px",
+        background: "#08081a",
       }}
     >
-      <div style={{ width: "100%", maxWidth: "400px" }}>
+      {/* Subtle radial glow behind the form */}
+      <div
+        style={{
+          position: "fixed",
+          top: "30%",
+          left: "50%",
+          transform: "translateX(-50%)",
+          width: "600px",
+          height: "600px",
+          background: "radial-gradient(circle, rgba(233,69,96,0.06) 0%, transparent 70%)",
+          pointerEvents: "none",
+        }}
+      />
+
+      <div style={{ width: "100%", maxWidth: "380px", position: "relative" }}>
         {/* Logo */}
         <div style={{ textAlign: "center", marginBottom: "40px" }}>
           <Link
@@ -61,41 +97,39 @@ export default function LoginPage() {
               textDecoration: "none",
             }}
           >
-            <div
-              style={{
-                width: "40px",
-                height: "40px",
-                borderRadius: "12px",
-                background: "linear-gradient(135deg, #e94560, #b91c1c)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontWeight: 800,
-                fontSize: "20px",
-                color: "white",
-              }}
-            >
-              K
+            <KansaLogo />
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+              <span style={{ fontSize: "22px", fontWeight: 700, color: "#f1f5f9", letterSpacing: "-0.5px", lineHeight: 1 }}>
+                Kansa
+              </span>
+              <span style={{ fontSize: "11px", fontWeight: 500, color: "#475569", letterSpacing: "0.3px", marginTop: "2px" }}>
+                AI Commerce
+              </span>
             </div>
-            <span style={{ fontSize: "22px", fontWeight: 700, color: "#f1f5f9" }}>
-              Kansa
-            </span>
           </Link>
         </div>
 
         {/* Form card */}
-        <div className="card">
+        <div
+          style={{
+            background: "#0d0d20",
+            border: "1px solid rgba(255,255,255,0.04)",
+            borderRadius: "16px",
+            padding: "32px",
+          }}
+        >
           <h1
             style={{
-              fontSize: "22px",
-              fontWeight: 600,
+              fontSize: "20px",
+              fontWeight: 700,
               color: "#f1f5f9",
-              marginBottom: "8px",
+              marginBottom: "6px",
+              letterSpacing: "-0.3px",
             }}
           >
             {isRegister ? "Create your account" : "Welcome back"}
           </h1>
-          <p style={{ color: "#94a3b8", fontSize: "14px", marginBottom: "28px" }}>
+          <p style={{ color: "#525c6c", fontSize: "13px", marginBottom: "28px" }}>
             {isRegister
               ? "Start optimizing your ecommerce listings with AI."
               : "Sign in to your Kansa account."}
@@ -104,9 +138,9 @@ export default function LoginPage() {
           {error && (
             <div
               style={{
-                background: "rgba(239, 68, 68, 0.1)",
-                border: "1px solid rgba(239, 68, 68, 0.3)",
-                borderRadius: "8px",
+                background: "rgba(239, 68, 68, 0.06)",
+                border: "1px solid rgba(239, 68, 68, 0.15)",
+                borderRadius: "10px",
                 padding: "12px 16px",
                 marginBottom: "20px",
                 color: "#fca5a5",
@@ -118,13 +152,13 @@ export default function LoginPage() {
           )}
 
           <form onSubmit={handleSubmit}>
-            <div style={{ marginBottom: "16px" }}>
+            <div style={{ marginBottom: "18px" }}>
               <label
                 style={{
                   display: "block",
-                  fontSize: "13px",
-                  fontWeight: 500,
-                  color: "#94a3b8",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  color: "#8892a4",
                   marginBottom: "6px",
                 }}
               >
@@ -135,17 +169,30 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="input"
                 required
+                style={{
+                  width: "100%",
+                  padding: "11px 14px",
+                  borderRadius: "10px",
+                  border: "1px solid rgba(255,255,255,0.06)",
+                  background: "#0a0a1a",
+                  color: "#f1f5f9",
+                  fontSize: "14px",
+                  outline: "none",
+                  transition: "border-color 0.15s",
+                  boxSizing: "border-box",
+                }}
+                onFocus={(e) => { e.currentTarget.style.borderColor = "rgba(233,69,96,0.4)"; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; }}
               />
             </div>
             <div style={{ marginBottom: "24px" }}>
               <label
                 style={{
                   display: "block",
-                  fontSize: "13px",
-                  fontWeight: 500,
-                  color: "#94a3b8",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  color: "#8892a4",
                   marginBottom: "6px",
                 }}
               >
@@ -156,16 +203,39 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="--------"
-                className="input"
                 required
                 minLength={8}
+                style={{
+                  width: "100%",
+                  padding: "11px 14px",
+                  borderRadius: "10px",
+                  border: "1px solid rgba(255,255,255,0.06)",
+                  background: "#0a0a1a",
+                  color: "#f1f5f9",
+                  fontSize: "14px",
+                  outline: "none",
+                  transition: "border-color 0.15s",
+                  boxSizing: "border-box",
+                }}
+                onFocus={(e) => { e.currentTarget.style.borderColor = "rgba(233,69,96,0.4)"; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; }}
               />
             </div>
             <button
               type="submit"
               disabled={loading}
-              className="btn-primary"
-              style={{ width: "100%", padding: "12px", opacity: loading ? 0.7 : 1 }}
+              style={{
+                width: "100%",
+                padding: "12px",
+                borderRadius: "10px",
+                border: "none",
+                background: loading ? "#334155" : "#e94560",
+                color: "#fff",
+                fontSize: "14px",
+                fontWeight: 600,
+                cursor: loading ? "not-allowed" : "pointer",
+                transition: "background 0.15s",
+              }}
             >
               {loading
                 ? isRegister
@@ -182,7 +252,7 @@ export default function LoginPage() {
               textAlign: "center",
               marginTop: "20px",
               fontSize: "13px",
-              color: "#64748b",
+              color: "#525c6c",
             }}
           >
             {isRegister ? "Already have an account?" : "Don't have an account?"}{" "}
@@ -197,12 +267,18 @@ export default function LoginPage() {
                 color: "#e94560",
                 cursor: "pointer",
                 fontSize: "13px",
+                fontWeight: 600,
               }}
             >
               {isRegister ? "Sign in" : "Create one"}
             </button>
           </p>
         </div>
+
+        {/* Footer */}
+        <p style={{ textAlign: "center", marginTop: "24px", fontSize: "11px", color: "#2a2a40" }}>
+          Kansa AI &middot; AI-powered ecommerce
+        </p>
       </div>
     </div>
   );

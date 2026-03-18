@@ -34,6 +34,56 @@ interface ConnectedStore {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Inline SVG Icons                                                   */
+/* ------------------------------------------------------------------ */
+
+function PackageIcon({ size = 20, color = "#64748b" }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M16.5 9.4l-9-5.19" />
+      <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" />
+      <path d="M3.27 6.96L12 12.01l8.73-5.05" />
+      <path d="M12 22.08V12" />
+    </svg>
+  );
+}
+
+function ImageIcon({ size = 20, color = "#64748b" }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+      <circle cx="8.5" cy="8.5" r="1.5" />
+      <path d="M21 15l-5-5L5 21" />
+    </svg>
+  );
+}
+
+function SparklesIcon({ size = 20, color = "#64748b" }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8L12 2z" />
+    </svg>
+  );
+}
+
+function PencilIcon({ size = 20, color = "#64748b" }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 3a2.828 2.828 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+    </svg>
+  );
+}
+
+function CloseIcon({ size = 20, color = "#64748b" }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 6L6 18" />
+      <path d="M6 6l12 12" />
+    </svg>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
@@ -140,6 +190,9 @@ function ProductsContent() {
   const [editInstructions, setEditInstructions] = useState("");
   const [editedImage, setEditedImage] = useState<string | null>(null);
   const [replaceIndex, setReplaceIndex] = useState<number | null>(null);
+
+  // Card hover state
+  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
 
   /* Fetch products + stores on mount */
   useEffect(() => {
@@ -366,10 +419,10 @@ function ProductsContent() {
         }}
       >
         <div>
-          <h1 style={{ fontSize: "28px", fontWeight: 700, color: "#f1f5f9" }}>
+          <h1 style={{ fontSize: "26px", fontWeight: 700, color: "#f1f5f9", letterSpacing: "-0.5px" }}>
             Products
           </h1>
-          <p style={{ color: "#94a3b8", marginTop: "8px", fontSize: "15px" }}>
+          <p style={{ color: "#5a6478", marginTop: "8px", fontSize: "14px" }}>
             Manage, optimize, and push AI-enhanced listings.
           </p>
         </div>
@@ -388,12 +441,12 @@ function ProductsContent() {
             onClick={handleAuditAll}
             disabled={auditing || products.length === 0}
             style={{
-              background: auditing ? "#334155" : "linear-gradient(135deg, #8b5cf6, #6d28d9)",
-              border: "none",
-              borderRadius: "8px",
-              color: "#fff",
-              padding: "10px 20px",
-              fontSize: "14px",
+              background: auditing ? "#334155" : "rgba(139,92,246,0.12)",
+              border: "1px solid rgba(139,92,246,0.2)",
+              borderRadius: "10px",
+              color: "#a78bfa",
+              padding: "9px 18px",
+              fontSize: "13px",
               fontWeight: 600,
               cursor: auditing || products.length === 0 ? "not-allowed" : "pointer",
               opacity: products.length === 0 ? 0.5 : 1,
@@ -407,10 +460,10 @@ function ProductsContent() {
             style={{
               background: syncing ? "#334155" : "#e94560",
               border: "none",
-              borderRadius: "8px",
+              borderRadius: "10px",
               color: "#fff",
-              padding: "10px 20px",
-              fontSize: "14px",
+              padding: "9px 18px",
+              fontSize: "13px",
               fontWeight: 600,
               cursor: syncing || !activeStore ? "not-allowed" : "pointer",
               opacity: !activeStore ? 0.5 : 1,
@@ -435,13 +488,15 @@ function ProductsContent() {
             textAlign: "center",
             padding: "80px 20px",
             color: "#64748b",
-            background: "#16162a",
-            borderRadius: "12px",
-            border: "1px solid #1e293b",
+            background: "#0d0d20",
+            borderRadius: "16px",
+            border: "1px solid rgba(255,255,255,0.04)",
           }}
         >
-          <p style={{ fontSize: "48px", marginBottom: "16px" }}>&#128230;</p>
-          <p style={{ fontSize: "18px", color: "#94a3b8", marginBottom: "8px" }}>
+          <div style={{ marginBottom: "16px", display: "flex", justifyContent: "center" }}>
+            <PackageIcon size={48} color="#2a2a40" />
+          </div>
+          <p style={{ fontSize: "17px", color: "#8892a4", marginBottom: "8px" }}>
             No products yet
           </p>
           <p style={{ fontSize: "14px", marginBottom: "20px" }}>
@@ -454,10 +509,10 @@ function ProductsContent() {
               style={{
                 background: "#e94560",
                 border: "none",
-                borderRadius: "8px",
+                borderRadius: "10px",
                 color: "#fff",
-                padding: "10px 24px",
-                fontSize: "14px",
+                padding: "9px 18px",
+                fontSize: "13px",
                 fontWeight: 600,
                 cursor: "pointer",
               }}
@@ -473,25 +528,30 @@ function ProductsContent() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-            gap: "20px",
+            gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+            gap: "16px",
           }}
         >
           {products.map((product) => {
             const badge = platformBadge(product.platform);
+            const isHovered = hoveredCard === product.id;
             return (
               <div
                 key={product.id}
-                className="card-hover"
+                onMouseEnter={() => setHoveredCard(product.id)}
+                onMouseLeave={() => setHoveredCard(null)}
                 style={{
-                  background: "#12122a",
-                  borderRadius: "12px",
-                  border: "1px solid rgba(255,255,255,0.06)",
+                  background: "#0d0d20",
+                  borderRadius: "14px",
+                  border: isHovered
+                    ? "1px solid rgba(233, 69, 96, 0.15)"
+                    : "1px solid rgba(255,255,255,0.04)",
                   padding: "0",
                   overflow: "hidden",
                   display: "flex",
                   flexDirection: "column",
                   cursor: "pointer",
+                  transition: "border-color 0.2s ease",
                 }}
               >
                 {/* Image — clickable to detail page */}
@@ -502,8 +562,8 @@ function ProductsContent() {
                   <div
                     style={{
                       width: "100%",
-                      height: "200px",
-                      background: "#0f0f23",
+                      height: "220px",
+                      background: "#08081a",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -523,7 +583,7 @@ function ProductsContent() {
                         }}
                       />
                     ) : (
-                      <span style={{ fontSize: "48px", color: "#334155" }}>&#128247;</span>
+                      <ImageIcon size={48} color="#334155" />
                     )}
                     {/* Platform badge */}
                     <div
@@ -546,14 +606,14 @@ function ProductsContent() {
                 </Link>
 
                 {/* Info */}
-                <div style={{ padding: "20px", flex: 1, display: "flex", flexDirection: "column" }}>
+                <div style={{ padding: "18px 20px", flex: 1, display: "flex", flexDirection: "column" }}>
                   <Link
                     href={`/products/${product.id}`}
                     style={{ textDecoration: "none" }}
                   >
                     <h3
                       style={{
-                        fontSize: "15px",
+                        fontSize: "14px",
                         fontWeight: 600,
                         color: "#f1f5f9",
                         marginBottom: "6px",
@@ -564,6 +624,7 @@ function ProductsContent() {
                         WebkitBoxOrient: "vertical",
                         lineHeight: "1.4",
                         cursor: "pointer",
+                        letterSpacing: "-0.2px",
                       }}
                     >
                       {product.title}
@@ -586,7 +647,7 @@ function ProductsContent() {
                     }}
                   >
                     {/* Price */}
-                    <span style={{ fontSize: "18px", fontWeight: 700, color: "#f1f5f9" }}>
+                    <span style={{ fontSize: "17px", fontWeight: 700, color: "#f1f5f9" }}>
                       {product.price !== null ? `$${product.price.toFixed(2)}` : "--"}
                     </span>
 
@@ -613,8 +674,8 @@ function ProductsContent() {
                     style={{
                       marginTop: "16px",
                       width: "100%",
-                      background: "rgba(233, 69, 96, 0.1)",
-                      border: "1px solid rgba(233, 69, 96, 0.3)",
+                      background: "rgba(233, 69, 96, 0.06)",
+                      border: "1px solid rgba(233, 69, 96, 0.15)",
                       borderRadius: "8px",
                       color: "#e94560",
                       padding: "10px 0",
@@ -625,11 +686,11 @@ function ProductsContent() {
                     }}
                     onMouseEnter={(e) => {
                       (e.currentTarget as HTMLButtonElement).style.background =
-                        "rgba(233, 69, 96, 0.2)";
+                        "rgba(233, 69, 96, 0.12)";
                     }}
                     onMouseLeave={(e) => {
                       (e.currentTarget as HTMLButtonElement).style.background =
-                        "rgba(233, 69, 96, 0.1)";
+                        "rgba(233, 69, 96, 0.06)";
                     }}
                   >
                     Optimize
@@ -666,8 +727,8 @@ function ProductsContent() {
               width: "560px",
               maxWidth: "100vw",
               height: "100vh",
-              background: "#0f0f23",
-              borderLeft: "1px solid #1e293b",
+              background: "#0a0a1a",
+              borderLeft: "1px solid rgba(255,255,255,0.06)",
               zIndex: 999,
               display: "flex",
               flexDirection: "column",
@@ -681,7 +742,7 @@ function ProductsContent() {
                 alignItems: "center",
                 justifyContent: "space-between",
                 padding: "20px 24px",
-                borderBottom: "1px solid #1e293b",
+                borderBottom: "1px solid rgba(255,255,255,0.06)",
                 flexShrink: 0,
               }}
             >
@@ -694,13 +755,15 @@ function ProductsContent() {
                   background: "none",
                   border: "none",
                   color: "#64748b",
-                  fontSize: "24px",
                   cursor: "pointer",
-                  padding: "0 4px",
+                  padding: "4px",
                   lineHeight: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
               >
-                &times;
+                <CloseIcon size={20} color="#64748b" />
               </button>
             </div>
 
@@ -718,9 +781,9 @@ function ProductsContent() {
               {/* Current product info */}
               <div
                 style={{
-                  background: "#16162a",
+                  background: "#0f0f22",
                   borderRadius: "12px",
-                  border: "1px solid #1e293b",
+                  border: "1px solid rgba(255,255,255,0.04)",
                   padding: "20px",
                 }}
               >
@@ -747,12 +810,10 @@ function ProductsContent() {
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        fontSize: "32px",
-                        color: "#334155",
                         flexShrink: 0,
                       }}
                     >
-                      &#128247;
+                      <ImageIcon size={32} color="#334155" />
                     </div>
                   )}
                   <div style={{ minWidth: 0 }}>
@@ -887,9 +948,9 @@ function ProductsContent() {
                     <div
                       key={field}
                       style={{
-                        background: "#16162a",
+                        background: "#0f0f22",
                         borderRadius: "12px",
-                        border: "1px solid #1e293b",
+                        border: "1px solid rgba(255,255,255,0.04)",
                         padding: "20px",
                       }}
                     >
@@ -1007,9 +1068,9 @@ function ProductsContent() {
                   {/* Reasoning */}
                   <div
                     style={{
-                      background: "#16162a",
+                      background: "#0f0f22",
                       borderRadius: "12px",
-                      border: "1px solid #1e293b",
+                      border: "1px solid rgba(255,255,255,0.04)",
                       padding: "20px",
                     }}
                   >
@@ -1107,9 +1168,9 @@ function ProductsContent() {
               {/* ── AI Image Generation ─────────────────────── */}
               <div
                 style={{
-                  background: "#16162a",
+                  background: "#0f0f22",
                   borderRadius: "12px",
-                  border: "1px solid #1e293b",
+                  border: "1px solid rgba(255,255,255,0.04)",
                   padding: "20px",
                 }}
               >
@@ -1126,7 +1187,7 @@ function ProductsContent() {
                     gap: "8px",
                   }}
                 >
-                  <span style={{ fontSize: "16px" }}>&#127912;</span>
+                  <SparklesIcon size={16} color="#94a3b8" />
                   AI Image Generation
                 </h4>
 
@@ -1313,9 +1374,9 @@ function ProductsContent() {
               {/* ── AI Image Editing ───────────────────────── */}
               <div
                 style={{
-                  background: "#16162a",
+                  background: "#0f0f22",
                   borderRadius: "12px",
-                  border: "1px solid #1e293b",
+                  border: "1px solid rgba(255,255,255,0.04)",
                   padding: "20px",
                 }}
               >
@@ -1332,7 +1393,7 @@ function ProductsContent() {
                     gap: "8px",
                   }}
                 >
-                  <span style={{ fontSize: "16px" }}>&#9999;&#65039;</span>
+                  <PencilIcon size={16} color="#94a3b8" />
                   Edit Existing Image
                 </h4>
 

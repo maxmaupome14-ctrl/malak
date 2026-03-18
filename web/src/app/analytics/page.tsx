@@ -343,7 +343,7 @@ function AnalyticsContent() {
 
         {optimizedProducts.length === 0 ? (
           <div style={{ textAlign: "center", padding: "40px 20px", color: "#64748b" }}>
-            <p style={{ fontSize: "36px", marginBottom: "12px" }}>&#9889;</p>
+            <div style={{ marginBottom: "12px", display: "flex", justifyContent: "center" }}><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#2a2a40" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg></div>
             <p style={{ fontSize: "14px" }}>No products have been optimized yet.</p>
             <p style={{ fontSize: "13px", marginTop: "4px" }}>
               Optimize a product listing to see before/after score comparisons here.
@@ -479,7 +479,7 @@ function AnalyticsContent() {
 
         {stores.length === 0 ? (
           <div style={{ textAlign: "center", padding: "40px 20px", color: "#64748b" }}>
-            <p style={{ fontSize: "36px", marginBottom: "12px" }}>&#127978;</p>
+            <div style={{ marginBottom: "12px", display: "flex", justifyContent: "center" }}><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#2a2a40" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg></div>
             <p style={{ fontSize: "14px" }}>No stores connected yet.</p>
           </div>
         ) : (

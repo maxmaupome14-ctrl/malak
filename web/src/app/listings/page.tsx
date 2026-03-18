@@ -170,7 +170,7 @@ function ListingsContent() {
   if (stores.length === 0) {
     return (
       <div style={{ textAlign: "center", padding: "80px 20px" }}>
-        <p style={{ fontSize: "48px", marginBottom: "16px" }}>&#128717;</p>
+        <div style={{ marginBottom: "16px", display: "flex", justifyContent: "center" }}><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#2a2a40" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" /><line x1="3" y1="6" x2="21" y2="6" /><path d="M16 10a4 4 0 01-8 0" /></svg></div>
         <h2 style={{ fontSize: "24px", fontWeight: 700, color: "#f1f5f9", marginBottom: "12px" }}>
           No stores connected
         </h2>
@@ -310,7 +310,7 @@ function ListingsContent() {
       {/* Optimizations by product */}
       {optimizations.length === 0 && !loading && (
         <div className="card" style={{ textAlign: "center", padding: "60px 20px" }}>
-          <p style={{ fontSize: "40px", marginBottom: "16px" }}>&#9889;</p>
+          <div style={{ marginBottom: "16px", display: "flex", justifyContent: "center" }}><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#2a2a40" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg></div>
           <p style={{ color: "#94a3b8", fontSize: "15px", marginBottom: "8px" }}>
             No optimizations yet.
           </p>

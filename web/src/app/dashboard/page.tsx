@@ -287,7 +287,7 @@ function DashboardContent() {
         </h2>
         {history.length === 0 ? (
           <div style={{ textAlign: "center", padding: "48px 20px", color: "#64748b" }}>
-            <p style={{ fontSize: "40px", marginBottom: "16px" }}>&#128270;</p>
+            <div style={{ marginBottom: "16px", display: "flex", justifyContent: "center" }}><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#2a2a40" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg></div>
             <p style={{ fontSize: "15px", marginBottom: "8px" }}>
               No audits yet. Run your first one to get started.
             </p>

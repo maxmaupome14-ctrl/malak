@@ -25,27 +25,22 @@ export default function LandingPage() {
           justifyContent: "space-between",
           alignItems: "center",
           padding: "20px 40px",
-          borderBottom: "1px solid #1e293b",
+          borderBottom: "1px solid rgba(255,255,255,0.04)",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <div
-            style={{
-              width: "36px",
-              height: "36px",
-              borderRadius: "10px",
-              background: "linear-gradient(135deg, #e94560, #b91c1c)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontWeight: 800,
-              fontSize: "18px",
-              color: "white",
-            }}
-          >
-            K
-          </div>
-          <span style={{ fontSize: "20px", fontWeight: 700, color: "#f1f5f9" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <svg width="36" height="36" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="kansa-nav-grad" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#e94560" />
+                <stop offset="100%" stopColor="#c2185b" />
+              </linearGradient>
+            </defs>
+            <rect width="32" height="32" rx="8" fill="url(#kansa-nav-grad)" />
+            <path d="M11 8v16M11 16l7-8M11 16l7 8" stroke="white" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
+            <circle cx="22" cy="12" r="2" fill="rgba(255,255,255,0.6)" />
+          </svg>
+          <span style={{ fontSize: "20px", fontWeight: 700, color: "#f1f5f9", letterSpacing: "-0.4px" }}>
             Kansa
           </span>
         </div>
@@ -81,8 +76,8 @@ export default function LandingPage() {
             gap: "8px",
             padding: "6px 16px",
             borderRadius: "999px",
-            border: "1px solid #334155",
-            background: "#16162a",
+            border: "1px solid rgba(255,255,255,0.06)",
+            background: "#0d0d20",
             fontSize: "13px",
             color: "#94a3b8",
             marginBottom: "32px",
@@ -160,16 +155,17 @@ export default function LandingPage() {
             ].map((item) => (
               <div key={item.step} style={{ textAlign: "center" }}>
                 <div style={{
-                  width: "48px",
-                  height: "48px",
-                  borderRadius: "50%",
-                  background: "linear-gradient(135deg, #e94560, #b91c1c)",
+                  width: "44px",
+                  height: "44px",
+                  borderRadius: "12px",
+                  background: "rgba(233, 69, 96, 0.08)",
+                  border: "1px solid rgba(233, 69, 96, 0.12)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontWeight: 800,
-                  fontSize: "20px",
-                  color: "white",
+                  fontWeight: 700,
+                  fontSize: "18px",
+                  color: "#e94560",
                   margin: "0 auto 16px",
                 }}>
                   {item.step}
@@ -229,15 +225,17 @@ export default function LandingPage() {
             }}
           >
             {[
-              { icon: "\u{1f50d}", name: "Scout", desc: "Scrapes and extracts structured data from any ecommerce platform" },
-              { icon: "\u{1f4ca}", name: "Auditor", desc: "Scores every aspect of your listing against best practices" },
-              { icon: "\u{1f575}\ufe0f", name: "Spy", desc: "Competitive intel — tracks pricing, reviews, and market trends" },
-              { icon: "\u270d\ufe0f", name: "Copywriter", desc: "Generates SEO-optimized titles, descriptions, and bullet points" },
-              { icon: "\u{1f9e0}", name: "Strategist", desc: "Creates actionable plans with quick wins and long-term plays" },
-              { icon: "\u{1f680}", name: "Pusher", desc: "Pushes approved changes directly to your store via API" },
+              { path: "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z", name: "Scout", desc: "Scrapes and extracts structured data from any ecommerce platform" },
+              { path: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z", name: "Auditor", desc: "Scores every aspect of your listing against best practices" },
+              { path: "M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z", name: "Spy", desc: "Competitive intel — tracks pricing, reviews, and market trends" },
+              { path: "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z", name: "Copywriter", desc: "Generates SEO-optimized titles, descriptions, and bullet points" },
+              { path: "M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z", name: "Strategist", desc: "Creates actionable plans with quick wins and long-term plays" },
+              { path: "M13 10V3L4 14h7v7l9-11h-7z", name: "Pusher", desc: "Pushes approved changes directly to your store via API" },
             ].map((agent) => (
-              <div key={agent.name} className="card" style={{ textAlign: "left" }}>
-                <div style={{ fontSize: "24px", marginBottom: "8px" }}>{agent.icon}</div>
+              <div key={agent.name} className="card-hover" style={{ textAlign: "left", background: "#0d0d20", border: "1px solid rgba(255,255,255,0.04)", borderRadius: "14px", padding: "24px" }}>
+                <div style={{ marginBottom: "10px" }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#e94560" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d={agent.path} /></svg>
+                </div>
                 <h3 style={{ fontSize: "15px", fontWeight: 600, color: "#f1f5f9", marginBottom: "6px" }}>
                   {agent.name}
                 </h3>
@@ -255,7 +253,7 @@ export default function LandingPage() {
         style={{
           textAlign: "center",
           padding: "32px",
-          borderTop: "1px solid #1e293b",
+          borderTop: "1px solid rgba(255,255,255,0.04)",
           color: "#64748b",
           fontSize: "13px",
         }}
