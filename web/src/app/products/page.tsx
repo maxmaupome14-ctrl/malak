@@ -72,6 +72,8 @@ function ProductsContent() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState("");
+  const [auditing, setAuditing] = useState(false);
+  const [auditMsg, setAuditMsg] = useState("");
 
   // Optimize panel state
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -122,6 +124,26 @@ function ProductsContent() {
       setSyncMsg("Sync failed. Check store connection.");
     } finally {
       setSyncing(false);
+    }
+  };
+
+  /* Audit all products */
+  const handleAuditAll = async () => {
+    setAuditing(true);
+    setAuditMsg("");
+    try {
+      const res = await api.post<{ product_id: string; overall_score: number }[]>(
+        "/audit/all",
+        {}
+      );
+      setAuditMsg(`Audited ${res.length} products`);
+      // Refresh products to show updated scores
+      const fresh = await api.get<Product[]>("/products").catch(() => [] as Product[]);
+      setProducts(fresh);
+    } catch {
+      setAuditMsg("Audit failed.");
+    } finally {
+      setAuditing(false);
     }
   };
 
@@ -234,16 +256,33 @@ function ProductsContent() {
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          {syncMsg && (
+          {(syncMsg || auditMsg) && (
             <span
               style={{
                 fontSize: "12px",
-                color: syncMsg.includes("failed") ? "#ef4444" : "#22c55e",
+                color: (syncMsg + auditMsg).includes("failed") ? "#ef4444" : "#22c55e",
               }}
             >
-              {syncMsg}
+              {syncMsg || auditMsg}
             </span>
           )}
+          <button
+            onClick={handleAuditAll}
+            disabled={auditing || products.length === 0}
+            style={{
+              background: auditing ? "#334155" : "linear-gradient(135deg, #8b5cf6, #6d28d9)",
+              border: "none",
+              borderRadius: "8px",
+              color: "#fff",
+              padding: "10px 20px",
+              fontSize: "14px",
+              fontWeight: 600,
+              cursor: auditing || products.length === 0 ? "not-allowed" : "pointer",
+              opacity: products.length === 0 ? 0.5 : 1,
+            }}
+          >
+            {auditing ? "Auditing..." : "Audit All"}
+          </button>
           <button
             onClick={handleSync}
             disabled={syncing || !activeStore}

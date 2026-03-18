@@ -177,6 +177,89 @@ async def get_audit(
     return audit
 
 
+@router.post("/all", response_model=list[dict])
+async def audit_all_products(
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> list[dict]:
+    """
+    Audit all synced products for the current user.
+
+    Runs the rule-based scoring (no LLM call, instant) on every product
+    and updates their overall_score. Returns scores for all products.
+    """
+    from src.agents.auditor import (
+        score_title, score_images, score_pricing,
+        score_reviews, score_seo, score_content, WEIGHTS,
+    )
+    from src.models.product import Product
+
+    result = await session.execute(
+        select(Product).where(Product.user_id == user.id)
+    )
+    products = list(result.scalars().all())
+
+    if not products:
+        return []
+
+    results = []
+    for product in products:
+        # Build product dict in the format the auditor expects
+        product_data = {
+            "title": product.title or "",
+            "brand": product.brand or "",
+            "price": product.price,
+            "images": product.images or [],
+            "bullet_points": product.bullet_points or [],
+            "description": product.description or "",
+            "category": product.category or "",
+            "rating": None,
+            "review_count": 0,
+        }
+
+        # Run all scoring functions
+        title_score, title_s, title_w = score_title(product_data)
+        image_score, image_s, image_w = score_images(product_data)
+        price_score, price_s, price_w = score_pricing(product_data)
+        review_score, review_s, review_w = score_reviews(product_data)
+        seo_score, seo_s, seo_w = score_seo(product_data)
+        content_score, content_s, content_w = score_content(product_data)
+
+        dimension_scores = {
+            "title": title_score,
+            "images": image_score,
+            "pricing": price_score,
+            "reviews": review_score,
+            "seo": seo_score,
+            "content": content_score,
+        }
+
+        overall = round(
+            sum(dimension_scores[dim] * weight for dim, weight in WEIGHTS.items())
+        )
+
+        # Update product score in DB
+        product.overall_score = overall
+        product.metadata_ = {
+            **(product.metadata_ or {}),
+            "dimension_scores": dimension_scores,
+            "strengths": (title_s + image_s + price_s + review_s + seo_s + content_s)[:5],
+            "weaknesses": (title_w + image_w + price_w + review_w + seo_w + content_w)[:5],
+        }
+
+        results.append({
+            "product_id": str(product.id),
+            "title": product.title,
+            "overall_score": overall,
+            "dimension_scores": dimension_scores,
+            "strengths": (title_s + image_s + price_s + review_s + seo_s + content_s)[:5],
+            "weaknesses": (title_w + image_w + price_w + review_w + seo_w + content_w)[:5],
+        })
+
+    await session.commit()
+    return results
+
+
 @router.get("", response_model=list[AuditResponse])
 async def list_audits(
     user: User = Depends(current_active_user),
