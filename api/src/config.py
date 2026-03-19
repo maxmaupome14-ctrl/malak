@@ -78,7 +78,12 @@ class Settings(BaseSettings):
     SENTRY_DSN: str | None = None
 
     @model_validator(mode="after")
-    def _validate_secret_key(self) -> "Settings":
+    def _fixup(self) -> "Settings":
+        # Railway gives postgresql:// but asyncpg needs postgresql+asyncpg://
+        if self.DATABASE_URL.startswith("postgresql://"):
+            self.DATABASE_URL = self.DATABASE_URL.replace(
+                "postgresql://", "postgresql+asyncpg://", 1
+            )
         if self.is_production and self.SECRET_KEY == "change-me-to-a-random-64-char-string":
             raise ValueError(
                 "SECRET_KEY must be changed from its default value in production"
