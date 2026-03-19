@@ -9,16 +9,16 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Kansa — AI Employee for Your Ecommerce Store",
+  title: "Kansa — Amazon Listing Optimizer with Proof",
   description:
-    "Connect your Shopify store. Kansa's AI agents analyze, optimize, and push changes to your listings — so you sell more without lifting a finger.",
+    "AI audits your Amazon listing across 6 dimensions, fixes every issue, and measures the impact in 30 days. Not vibes — proof.",
   keywords: [
-    "ecommerce",
-    "AI",
-    "shopify optimization",
-    "product listing optimization",
-    "AI employee",
-    "ecommerce automation",
+    "amazon listing optimization",
+    "amazon SEO",
+    "product listing audit",
+    "AI amazon optimizer",
+    "ecommerce AI",
+    "amazon seller tools",
   ],
 };
 
