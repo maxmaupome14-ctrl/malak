@@ -91,381 +91,301 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 /* ═══════════════════════════════════════════════════════
-   FULL-SCREEN HUD PROCESSING OVERLAY
+   FULL-SCREEN THREAT DETECTION OVERLAY
    ═══════════════════════════════════════════════════════ */
 
-interface HUDParticle {
-  angle: number;
-  radius: number;
-  speed: number;
-  size: number;
-  opacity: number;
-  drift: number;
-}
+const SCAN_DIMENSIONS = [
+  "Title Quality", "Main Image", "Gallery Depth", "Bullet Points", "Description",
+  "Pricing Strategy", "Review Signals", "SEO Coverage", "Brand Presence", "Competitive Edge",
+];
 
-function HUDOverlay({ status, onDismiss }: { status: AuditStatus; onDismiss?: () => void }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const frameRef = useRef<number>(0);
-  const particlesRef = useRef<HUDParticle[]>([]);
-  const rotRef = useRef(0);
-  const ringRotRef = useRef(0);
-
+function HUDOverlay({ status }: { status: AuditStatus }) {
   const stepIndex = HUD_STEPS.findIndex(s => s.key === status);
   const [percent, setPercent] = useState(0);
-  const [typedIdx, setTypedIdx] = useState(0);
-  const [typedText, setTypedText] = useState("");
   const [completedSteps, setCompletedSteps] = useState<boolean[]>([false, false, false]);
+  const [activeDim, setActiveDim] = useState(0);
+  const [logLines, setLogLines] = useState<string[]>([]);
 
-  // Percentage based on step
+  // Percentage — faster, more aggressive increments
   useEffect(() => {
-    const targets = [33, 66, 95];
+    const targets = [30, 65, 95];
     const target = stepIndex >= 0 ? targets[Math.min(stepIndex, 2)] : 0;
     const interval = setInterval(() => {
       setPercent(p => {
         if (p >= target) { clearInterval(interval); return target; }
-        return p + 1;
+        const jump = Math.random() > 0.7 ? 3 : 1;
+        return Math.min(p + jump, target);
       });
-    }, 60);
+    }, 40);
     return () => clearInterval(interval);
   }, [stepIndex]);
 
   // Mark completed steps
   useEffect(() => {
     setCompletedSteps(prev => prev.map((_, i) => i < stepIndex));
-    if (stepIndex >= 0 && stepIndex < HUD_STEPS.length) {
-      setTypedIdx(stepIndex);
-      setTypedText("");
-    }
   }, [stepIndex]);
 
-  // Typewriter effect
+  // Cycle through dimensions being "scanned"
   useEffect(() => {
-    if (typedIdx >= HUD_STEPS.length) return;
-    const fullText = HUD_STEPS[typedIdx].text;
-    if (typedText.length < fullText.length) {
-      const t = setTimeout(() => setTypedText(fullText.slice(0, typedText.length + 1)), 40);
-      return () => clearTimeout(t);
-    }
-  }, [typedText, typedIdx]);
-
-  // Canvas animation
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const resize = () => {
-      canvas.width = window.innerWidth * 2;
-      canvas.height = window.innerHeight * 2;
-      ctx.scale(2, 2);
-    };
-    resize();
-
-    // Init particles
-    if (particlesRef.current.length === 0) {
-      for (let i = 0; i < 60; i++) {
-        particlesRef.current.push({
-          angle: Math.random() * Math.PI * 2,
-          radius: 80 + Math.random() * 180,
-          speed: 0.003 + Math.random() * 0.012,
-          size: 0.5 + Math.random() * 2.5,
-          opacity: 0.2 + Math.random() * 0.6,
-          drift: (Math.random() - 0.5) * 0.3,
-        });
-      }
-    }
-
-    const w = window.innerWidth;
-    const h = window.innerHeight;
-    const cx = w / 2;
-    const cy = h * 0.4;
-
-    const draw = () => {
-      ctx.fillStyle = "rgba(8, 8, 26, 0.15)";
-      ctx.fillRect(0, 0, w, h);
-
-      const t = Date.now() / 1000;
-
-      // Grid
-      ctx.strokeStyle = `rgba(233, 69, 96, ${0.03 + Math.sin(t) * 0.01})`;
-      ctx.lineWidth = 0.5;
-      for (let x = 0; x < w; x += 60) {
-        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
-      }
-      for (let y = 0; y < h; y += 60) {
-        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
-      }
-
-      // Particles
-      particlesRef.current.forEach(p => {
-        p.angle += p.speed;
-        p.radius += p.drift * Math.sin(t + p.angle);
-        const x = cx + Math.cos(p.angle) * p.radius;
-        const y = cy + Math.sin(p.angle) * p.radius;
-
-        ctx.beginPath();
-        ctx.arc(x, y, p.size, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(233, 69, 96, ${p.opacity * (0.5 + 0.5 * Math.sin(t * 2 + p.angle))})`;
-        ctx.fill();
-
-        // Trail
-        const tx = cx + Math.cos(p.angle - p.speed * 8) * p.radius;
-        const ty = cy + Math.sin(p.angle - p.speed * 8) * p.radius;
-        const grad = ctx.createLinearGradient(tx, ty, x, y);
-        grad.addColorStop(0, "rgba(233, 69, 96, 0)");
-        grad.addColorStop(1, `rgba(233, 69, 96, ${p.opacity * 0.3})`);
-        ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(x, y);
-        ctx.strokeStyle = grad; ctx.lineWidth = p.size * 0.7; ctx.stroke();
-      });
-
-      // Outer hexagon (rotating)
-      const hexR = 70 + Math.sin(t * 1.5) * 5;
-      ctx.beginPath();
-      for (let i = 0; i < 6; i++) {
-        const a = (Math.PI / 3) * i + rotRef.current;
-        const x = cx + Math.cos(a) * hexR;
-        const y = cy + Math.sin(a) * hexR;
-        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-      }
-      ctx.closePath();
-      ctx.strokeStyle = "#e94560";
-      ctx.lineWidth = 2;
-      ctx.shadowColor = "#e94560";
-      ctx.shadowBlur = 15;
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-
-      // Inner hexagon
-      const hexR2 = 45;
-      ctx.beginPath();
-      for (let i = 0; i < 6; i++) {
-        const a = (Math.PI / 3) * i - rotRef.current * 1.5;
-        const x = cx + Math.cos(a) * hexR2;
-        const y = cy + Math.sin(a) * hexR2;
-        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-      }
-      ctx.closePath();
-      ctx.strokeStyle = "rgba(233, 69, 96, 0.4)";
-      ctx.lineWidth = 1;
-      ctx.stroke();
-
-      // Rotating ring segments
-      const segments = 8;
-      for (let i = 0; i < segments; i++) {
-        if (i % 2 === 0) {
-          const sa = (Math.PI * 2 * i) / segments + ringRotRef.current;
-          const ea = (Math.PI * 2 * (i + 0.7)) / segments + ringRotRef.current;
-          ctx.beginPath();
-          ctx.arc(cx, cy, 100, sa, ea);
-          ctx.strokeStyle = "#e94560";
-          ctx.lineWidth = 3;
-          ctx.shadowColor = "#e94560";
-          ctx.shadowBlur = 10;
-          ctx.stroke();
-          ctx.shadowBlur = 0;
-        }
-      }
-
-      // Second ring (counter-rotating, dashed)
-      ctx.setLineDash([4, 12]);
-      ctx.beginPath();
-      ctx.arc(cx, cy, 120, -ringRotRef.current * 0.5, -ringRotRef.current * 0.5 + Math.PI * 1.7);
-      ctx.strokeStyle = "rgba(233, 69, 96, 0.15)";
-      ctx.lineWidth = 1;
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      // Third ring
-      ctx.beginPath();
-      ctx.arc(cx, cy, 140, ringRotRef.current * 0.3, ringRotRef.current * 0.3 + Math.PI * 0.8);
-      ctx.strokeStyle = "rgba(233, 69, 96, 0.08)";
-      ctx.lineWidth = 1;
-      ctx.stroke();
-
-      // Scanning rays from center
-      for (let i = 0; i < 4; i++) {
-        const a = t * 0.7 + (Math.PI / 2) * i;
-        const len = 100 + Math.sin(t * 3 + i) * 30;
-        const grad2 = ctx.createLinearGradient(cx, cy, cx + Math.cos(a) * len, cy + Math.sin(a) * len);
-        grad2.addColorStop(0, "rgba(233, 69, 96, 0.25)");
-        grad2.addColorStop(1, "rgba(233, 69, 96, 0)");
-        ctx.beginPath(); ctx.moveTo(cx, cy);
-        ctx.lineTo(cx + Math.cos(a) * len, cy + Math.sin(a) * len);
-        ctx.strokeStyle = grad2; ctx.lineWidth = 1; ctx.stroke();
-      }
-
-      // Center core
-      const coreR = 8 + Math.sin(t * 3) * 3;
-      ctx.beginPath();
-      ctx.arc(cx, cy, coreR, 0, Math.PI * 2);
-      ctx.fillStyle = "#e94560";
-      ctx.shadowColor = "#e94560";
-      ctx.shadowBlur = 25;
-      ctx.fill();
-      ctx.shadowBlur = 0;
-
-      // Pulsing glow
-      ctx.beginPath();
-      ctx.arc(cx, cy, 30 + Math.sin(t * 2) * 10, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(233, 69, 96, ${0.03 + Math.sin(t * 2) * 0.02})`;
-      ctx.fill();
-
-      // Data stream lines (vertical, like Matrix)
-      for (let i = 0; i < 8; i++) {
-        const sx = (w / 9) * (i + 1);
-        const sy = ((t * 40 * (i + 1)) % (h + 200)) - 100;
-        const sLen = 30 + Math.sin(t + i) * 20;
-        const grad3 = ctx.createLinearGradient(sx, sy, sx, sy + sLen);
-        grad3.addColorStop(0, "rgba(233, 69, 96, 0)");
-        grad3.addColorStop(0.5, `rgba(233, 69, 96, ${0.1 + Math.sin(t + i) * 0.05})`);
-        grad3.addColorStop(1, "rgba(233, 69, 96, 0)");
-        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx, sy + sLen);
-        ctx.strokeStyle = grad3; ctx.lineWidth = 1; ctx.stroke();
-      }
-
-      rotRef.current += 0.004;
-      ringRotRef.current -= 0.008;
-
-      frameRef.current = requestAnimationFrame(draw);
-    };
-
-    frameRef.current = requestAnimationFrame(draw);
-    const onResize = () => resize();
-    window.addEventListener("resize", onResize);
-    return () => {
-      cancelAnimationFrame(frameRef.current);
-      window.removeEventListener("resize", onResize);
-    };
+    const interval = setInterval(() => {
+      setActiveDim(d => (d + 1) % SCAN_DIMENSIONS.length);
+    }, 800);
+    return () => clearInterval(interval);
   }, []);
+
+  // Live log feed
+  useEffect(() => {
+    const logs = [
+      "Connecting to product database...",
+      "Extracting listing metadata...",
+      "Parsing HTML structure...",
+      "Downloading product images...",
+      "Analyzing title keyword density...",
+      "Scoring main image resolution...",
+      "Evaluating gallery completeness...",
+      "Parsing bullet point structure...",
+      "Running NLP on description...",
+      "Checking pricing vs. competitors...",
+      "Aggregating review sentiment...",
+      "Mapping keyword coverage...",
+      "Analyzing brand consistency...",
+      "Benchmarking vs. top 10 listings...",
+      "Computing dimension weights...",
+      "Generating threat assessment...",
+      "Building optimization roadmap...",
+      "Compiling final intelligence report...",
+    ];
+    let idx = 0;
+    const interval = setInterval(() => {
+      if (idx < logs.length) {
+        setLogLines(prev => [...prev.slice(-6), logs[idx]]);
+        idx++;
+      }
+    }, 1200);
+    return () => clearInterval(interval);
+  }, []);
+
+  const threatLevel = percent < 30 ? "SCANNING" : percent < 65 ? "ANALYZING" : "COMPILING";
+  const threatColor = percent < 30 ? "#e94560" : percent < 65 ? "#f59e0b" : "#22c55e";
 
   return (
     <div style={{
       position: "fixed", inset: 0, zIndex: 100,
       background: "#08081a", fontFamily: "'Courier New', monospace",
-      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+      display: "flex", flexDirection: "column",
+      overflow: "hidden",
     }}>
-      <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} />
-
-      {/* HUD Corners */}
-      {[
-        { top: "20px", left: "20px", bt: "3px solid #e94560", bl: "3px solid #e94560" },
-        { top: "20px", right: "20px", bt: "3px solid #e94560", br: "3px solid #e94560" },
-        { bottom: "20px", left: "20px", bb: "3px solid #e94560", bl: "3px solid #e94560" },
-        { bottom: "20px", right: "20px", bb: "3px solid #e94560", br: "3px solid #e94560" },
-      ].map((c, i) => (
-        <div key={i} style={{
-          position: "absolute", width: "50px", height: "50px",
-          borderTop: c.bt || "none", borderLeft: c.bl || "none",
-          borderRight: c.br || "none", borderBottom: c.bb || "none",
-          top: c.top, left: c.left, right: c.right, bottom: c.bottom,
-          opacity: 0.6,
-        } as any} />
-      ))}
-
-      {/* Top label */}
+      {/* Subtle grid background */}
       <div style={{
-        position: "absolute", top: "50px", left: "50%", transform: "translateX(-50%)",
-        fontSize: "11px", letterSpacing: "6px", color: "rgba(233, 69, 96, 0.4)",
-        fontWeight: 700, zIndex: 10,
-      }}>
-        KANSA INTELLIGENCE ENGINE
-      </div>
-
-      {/* Percentage */}
-      <div style={{
-        position: "relative", zIndex: 10, marginTop: "120px",
-        fontSize: "80px", fontWeight: 800, color: "#e94560",
-        textShadow: "0 0 30px rgba(233, 69, 96, 0.5), 0 0 60px rgba(233, 69, 96, 0.2)",
-        letterSpacing: "6px", fontFamily: "'Courier New', monospace",
-      }}>
-        {percent}%
-      </div>
-
-      {/* Current status */}
-      <div style={{
-        position: "relative", zIndex: 10, marginTop: "8px",
-        fontSize: "10px", letterSpacing: "4px", color: "rgba(233, 69, 96, 0.5)",
-      }}>
-        {HUD_STEPS[stepIndex]?.sub || "Initializing..."}
-      </div>
-
-      {/* Steps */}
-      <div style={{
-        position: "absolute", bottom: "80px", left: "50%", transform: "translateX(-50%)",
-        width: "500px", zIndex: 10,
-      }}>
-        {HUD_STEPS.map((step, i) => {
-          const isDone = completedSteps[i];
-          const isActive = i === stepIndex;
-          const isPending = i > stepIndex;
-
-          return (
-            <div key={i} style={{
-              display: "flex", alignItems: "center", gap: "16px",
-              marginBottom: "18px", opacity: isPending ? 0.2 : 1,
-              transition: "opacity 0.5s",
-            }}>
-              <div style={{
-                width: "24px", height: "24px", borderRadius: "50%",
-                border: `2px solid ${isDone ? "#22c55e" : "#e94560"}`,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                background: isDone ? "#22c55e" : "transparent",
-                transition: "all 0.4s",
-                boxShadow: isDone ? "0 0 12px rgba(34, 197, 94, 0.4)" : isActive ? "0 0 12px rgba(233, 69, 96, 0.3)" : "none",
-              }}>
-                {isDone && (
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#08081a" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                )}
-                {isActive && (
-                  <div style={{
-                    width: "6px", height: "6px", borderRadius: "50%",
-                    background: "#e94560", boxShadow: "0 0 8px #e94560",
-                    animation: "hud-pulse 1s ease-in-out infinite",
-                  }} />
-                )}
-              </div>
-              <div>
-                <div style={{
-                  fontSize: "14px", letterSpacing: "3px", fontWeight: 700,
-                  color: isDone ? "#22c55e" : isActive ? "#e94560" : "#3e4554",
-                  fontFamily: "'Courier New', monospace",
-                }}>
-                  {isActive ? typedText : isDone ? step.text : ""}
-                  {isActive && typedText.length < step.text.length && (
-                    <span style={{ animation: "blink 0.8s step-end infinite" }}>_</span>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Bottom coordinates */}
-      <div style={{
-        position: "absolute", bottom: "24px", left: "50%", transform: "translateX(-50%)",
-        fontSize: "9px", color: "rgba(233, 69, 96, 0.25)", letterSpacing: "2px", zIndex: 10,
-        fontFamily: "'Courier New', monospace",
-      }}>
-        SYS.AUDIT.v2.0 // NEURAL.NET.ACTIVE // QUANTUM.LOCK.ENGAGED
-      </div>
-
-      {/* Horizontal scan line */}
-      <div style={{
-        position: "absolute", left: 0, right: 0, height: "1px", zIndex: 5,
-        background: "linear-gradient(90deg, transparent 10%, rgba(233, 69, 96, 0.3) 50%, transparent 90%)",
-        animation: "scan-v 3s ease-in-out infinite",
+        position: "absolute", inset: 0, opacity: 0.03,
+        backgroundImage: "linear-gradient(rgba(233,69,96,1) 1px, transparent 1px), linear-gradient(90deg, rgba(233,69,96,1) 1px, transparent 1px)",
+        backgroundSize: "40px 40px",
       }} />
 
+      {/* Scan line */}
+      <div style={{
+        position: "absolute", left: 0, right: 0, height: "2px", zIndex: 5,
+        background: "linear-gradient(90deg, transparent, rgba(233, 69, 96, 0.4), transparent)",
+        animation: "scan-v 2s linear infinite",
+      }} />
+
+      {/* ── TOP BAR: Alert header ── */}
+      <div style={{
+        padding: "16px 28px", display: "flex", alignItems: "center", justifyContent: "space-between",
+        borderBottom: "1px solid rgba(233, 69, 96, 0.08)", position: "relative", zIndex: 10,
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <div style={{
+            width: "8px", height: "8px", borderRadius: "50%",
+            background: "#e94560", boxShadow: "0 0 12px #e94560",
+            animation: "alert-flash 0.6s ease-in-out infinite",
+          }} />
+          <span style={{ fontSize: "11px", fontWeight: 700, color: "#e94560", letterSpacing: "4px" }}>
+            AUDIT IN PROGRESS
+          </span>
+        </div>
+        <span style={{ fontSize: "10px", color: "#3e4554", letterSpacing: "2px" }}>
+          SYS.KANSA.v2
+        </span>
+      </div>
+
+      {/* ── MAIN CONTENT ── */}
+      <div style={{
+        flex: 1, display: "flex", flexDirection: "column", alignItems: "center",
+        justifyContent: "center", gap: "32px", position: "relative", zIndex: 10,
+        padding: "0 28px",
+      }}>
+
+        {/* Threat level badge */}
+        <div style={{
+          display: "flex", alignItems: "center", gap: "10px",
+          padding: "6px 18px", borderRadius: "4px",
+          background: `${threatColor}08`, border: `1px solid ${threatColor}20`,
+          animation: "alert-flash 1.5s ease-in-out infinite",
+        }}>
+          <div style={{
+            width: "6px", height: "6px", borderRadius: "50%",
+            background: threatColor, boxShadow: `0 0 8px ${threatColor}`,
+          }} />
+          <span style={{ fontSize: "10px", fontWeight: 700, color: threatColor, letterSpacing: "3px" }}>
+            STATUS: {threatLevel}
+          </span>
+        </div>
+
+        {/* Big percentage */}
+        <div style={{ textAlign: "center" }}>
+          <div style={{
+            fontSize: "96px", fontWeight: 900, color: "#e94560",
+            textShadow: "0 0 40px rgba(233, 69, 96, 0.3)",
+            letterSpacing: "-4px", lineHeight: 1,
+          }}>
+            {percent}
+          </div>
+          <div style={{
+            fontSize: "10px", color: "#3e4554", letterSpacing: "6px", marginTop: "4px",
+          }}>
+            PERCENT COMPLETE
+          </div>
+        </div>
+
+        {/* Progress bar — aggressive, full-width */}
+        <div style={{ width: "100%", maxWidth: "480px" }}>
+          <div style={{
+            height: "3px", borderRadius: "2px", background: "rgba(255,255,255,0.03)",
+            overflow: "hidden", position: "relative",
+          }}>
+            <div style={{
+              height: "100%", width: `${percent}%`, borderRadius: "2px",
+              background: `linear-gradient(90deg, #e94560, ${threatColor})`,
+              boxShadow: `0 0 12px ${threatColor}40`,
+              transition: "width 0.3s ease-out",
+            }} />
+            {/* Racing light on the bar */}
+            <div style={{
+              position: "absolute", top: 0, height: "100%", width: "60px",
+              background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)",
+              animation: "bar-race 1.2s linear infinite",
+            }} />
+          </div>
+        </div>
+
+        {/* ── STEP CARDS — the urgency driver ── */}
+        <div style={{ width: "100%", maxWidth: "480px", display: "flex", flexDirection: "column", gap: "6px" }}>
+          {HUD_STEPS.map((step, i) => {
+            const isDone = completedSteps[i];
+            const isActive = i === stepIndex;
+            const isPending = i > stepIndex;
+
+            return (
+              <div key={i} style={{
+                display: "flex", alignItems: "center", gap: "14px",
+                padding: "12px 16px", borderRadius: "6px",
+                background: isActive ? "rgba(233, 69, 96, 0.04)" : isDone ? "rgba(34, 197, 94, 0.02)" : "rgba(255,255,255,0.01)",
+                border: `1px solid ${isActive ? "rgba(233, 69, 96, 0.12)" : isDone ? "rgba(34, 197, 94, 0.06)" : "rgba(255,255,255,0.02)"}`,
+                opacity: isPending ? 0.3 : 1,
+                transition: "all 0.4s",
+              }}>
+                {/* Status indicator */}
+                <div style={{
+                  width: "28px", height: "28px", borderRadius: "6px",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  background: isDone ? "rgba(34, 197, 94, 0.08)" : isActive ? "rgba(233, 69, 96, 0.06)" : "transparent",
+                  border: `1px solid ${isDone ? "rgba(34,197,94,0.15)" : isActive ? "rgba(233,69,96,0.12)" : "rgba(255,255,255,0.04)"}`,
+                  flexShrink: 0,
+                }}>
+                  {isDone && (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  )}
+                  {isActive && (
+                    <div style={{
+                      width: "12px", height: "12px", borderRadius: "3px",
+                      border: "2px solid #e94560",
+                      animation: "spin-square 1s linear infinite",
+                    }} />
+                  )}
+                  {isPending && (
+                    <div style={{ width: "4px", height: "4px", borderRadius: "50%", background: "#1e2030" }} />
+                  )}
+                </div>
+
+                {/* Text */}
+                <div style={{ flex: 1 }}>
+                  <div style={{
+                    fontSize: "12px", fontWeight: 700, letterSpacing: "2px",
+                    color: isDone ? "#22c55e" : isActive ? "#e94560" : "#1e2030",
+                  }}>
+                    {step.text}
+                  </div>
+                  <div style={{
+                    fontSize: "10px", color: isDone ? "#1a4d2e" : isActive ? "rgba(233,69,96,0.45)" : "#1e2030",
+                    marginTop: "1px",
+                  }}>
+                    {step.sub}
+                  </div>
+                </div>
+
+                {/* Status text */}
+                <span style={{
+                  fontSize: "9px", fontWeight: 700, letterSpacing: "1px",
+                  color: isDone ? "#22c55e" : isActive ? "#e94560" : "#1e2030",
+                }}>
+                  {isDone ? "DONE" : isActive ? "ACTIVE" : "QUEUED"}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Currently scanning dimension */}
+        <div style={{
+          display: "flex", alignItems: "center", gap: "8px",
+          fontSize: "10px", color: "#3e4554",
+        }}>
+          <div style={{
+            width: "4px", height: "4px", borderRadius: "50%",
+            background: "#e94560", animation: "alert-flash 0.4s ease-in-out infinite",
+          }} />
+          <span style={{ letterSpacing: "1px" }}>
+            Scanning: <span style={{ color: "#e94560", fontWeight: 700 }}>{SCAN_DIMENSIONS[activeDim]}</span>
+          </span>
+        </div>
+      </div>
+
+      {/* ── BOTTOM: Live log feed ── */}
+      <div style={{
+        padding: "12px 28px 20px", borderTop: "1px solid rgba(255,255,255,0.02)",
+        position: "relative", zIndex: 10,
+      }}>
+        <div style={{ fontSize: "9px", color: "#1e2030", letterSpacing: "2px", marginBottom: "6px", fontWeight: 700 }}>
+          SYSTEM LOG
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+          {logLines.map((line, i) => (
+            <div key={i} style={{
+              fontSize: "10px", color: i === logLines.length - 1 ? "#525c6c" : "#1e2030",
+              opacity: i === logLines.length - 1 ? 1 : 0.5 + (i / logLines.length) * 0.5,
+              transition: "all 0.3s",
+            }}>
+              <span style={{ color: "#1e2030", marginRight: "8px" }}>
+                {String(i + 1).padStart(2, "0")}
+              </span>
+              {line}
+              {i === logLines.length - 1 && (
+                <span style={{ animation: "blink 0.5s step-end infinite", color: "#e94560" }}>_</span>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
       <style>{`
-        @keyframes hud-pulse { 0%, 100% { opacity: 0.5; transform: scale(1); } 50% { opacity: 1; transform: scale(1.6); } }
+        @keyframes alert-flash { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
         @keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
-        @keyframes scan-v {
-          0% { top: 10%; } 50% { top: 90%; } 100% { top: 10%; }
-        }
+        @keyframes scan-v { 0% { top: 0; } 100% { top: 100%; } }
+        @keyframes spin-square { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes bar-race { from { left: -60px; } to { left: 100%; } }
       `}</style>
     </div>
   );
