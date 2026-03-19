@@ -92,6 +92,15 @@ class AuditResult(Base):
     #     "description": {"optimized": "...", "variants": [...]}
     # }
 
+    # ── Product Data (scraped) ─────────────────────
+    product_data: Mapped[dict] = mapped_column(JSONB, default=dict)
+    # {
+    #     "title": "...", "brand": "...", "price": 29.99, "currency": "USD",
+    #     "images": ["url1", "url2", ...], "video_urls": ["url1", ...],
+    #     "rating": 4.5, "review_count": 1234, "asin": "B0...",
+    #     "category": "...", "bullet_points": [...]
+    # }
+
     # ── Competitive Intel ────────────────────────────
     competitive_data: Mapped[dict] = mapped_column(JSONB, default=dict)
 

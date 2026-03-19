@@ -44,6 +44,7 @@ class AuditResponse(BaseModel):
     recommendations: list = []
     category_issues: dict = {}
     fix_costs: dict = {}
+    product_data: dict = {}
     generated_copy: dict = {}
     competitive_data: dict = {}
     error_message: str | None = None
@@ -191,8 +192,9 @@ async def audit_all_products(
     and updates their overall_score. Returns scores for all products.
     """
     from src.agents.auditor import (
-        score_title, score_images, score_pricing,
-        score_reviews, score_seo, score_content, WEIGHTS,
+        score_title, score_main_image, score_gallery, score_bullets,
+        score_description, score_pricing, score_reviews, score_seo,
+        score_brand, score_competitive, WEIGHTS,
     )
     from src.models.product import Product
 
@@ -219,34 +221,45 @@ async def audit_all_products(
             "review_count": 0,
         }
 
-        # Run all scoring functions
+        # Run all 10 scoring functions
         title_score, title_s, title_w = score_title(product_data)
-        image_score, image_s, image_w = score_images(product_data)
+        main_img_score, main_img_s, main_img_w = score_main_image(product_data)
+        gallery_score, gallery_s, gallery_w = score_gallery(product_data)
+        bullet_score, bullet_s, bullet_w = score_bullets(product_data)
+        desc_score, desc_s, desc_w = score_description(product_data)
         price_score, price_s, price_w = score_pricing(product_data)
         review_score, review_s, review_w = score_reviews(product_data)
         seo_score, seo_s, seo_w = score_seo(product_data)
-        content_score, content_s, content_w = score_content(product_data)
+        brand_score, brand_s, brand_w = score_brand(product_data)
+        comp_score, comp_s, comp_w = score_competitive(product_data)
 
         dimension_scores = {
             "title": title_score,
-            "images": image_score,
+            "main_image": main_img_score,
+            "gallery": gallery_score,
+            "bullets": bullet_score,
+            "description": desc_score,
             "pricing": price_score,
             "reviews": review_score,
             "seo": seo_score,
-            "content": content_score,
+            "brand": brand_score,
+            "competitive": comp_score,
         }
 
         overall = round(
             sum(dimension_scores[dim] * weight for dim, weight in WEIGHTS.items())
         )
 
+        all_s = title_s + main_img_s + gallery_s + bullet_s + desc_s + price_s + review_s + seo_s + brand_s + comp_s
+        all_w = title_w + main_img_w + gallery_w + bullet_w + desc_w + price_w + review_w + seo_w + brand_w + comp_w
+
         # Update product score in DB
         product.overall_score = overall
         product.metadata_ = {
             **(product.metadata_ or {}),
             "dimension_scores": dimension_scores,
-            "strengths": (title_s + image_s + price_s + review_s + seo_s + content_s)[:5],
-            "weaknesses": (title_w + image_w + price_w + review_w + seo_w + content_w)[:5],
+            "strengths": all_s[:5],
+            "weaknesses": all_w[:5],
         }
 
         results.append({
@@ -254,8 +267,8 @@ async def audit_all_products(
             "title": product.title,
             "overall_score": overall,
             "dimension_scores": dimension_scores,
-            "strengths": (title_s + image_s + price_s + review_s + seo_s + content_s)[:5],
-            "weaknesses": (title_w + image_w + price_w + review_w + seo_w + content_w)[:5],
+            "strengths": all_s[:5],
+            "weaknesses": all_w[:5],
         })
 
     await session.commit()

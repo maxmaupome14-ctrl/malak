@@ -71,6 +71,27 @@ async def run_audit_pipeline(ctx: dict, audit_id: str) -> None:
 
             product_data = scout_result.data.get("product", {})
 
+            # Store scraped product data for frontend display
+            audit.product_data = {
+                "title": product_data.get("title", ""),
+                "brand": product_data.get("brand", ""),
+                "price": product_data.get("price"),
+                "currency": product_data.get("currency", "USD"),
+                "original_price": product_data.get("original_price"),
+                "discount_percent": product_data.get("discount_percent"),
+                "images": product_data.get("images", [])[:9],
+                "video_urls": product_data.get("video_urls", []),
+                "rating": product_data.get("rating"),
+                "review_count": product_data.get("review_count", 0),
+                "asin": product_data.get("platform_id", ""),
+                "category": product_data.get("category", ""),
+                "bullet_points": product_data.get("bullet_points", []),
+                "in_stock": product_data.get("in_stock", True),
+                "seller_name": product_data.get("seller_name", ""),
+                "fulfillment": product_data.get("fulfillment", ""),
+            }
+            await session.commit()
+
             # ── Step 2: Auditor — Score the listing ────────
             await _update_status(session, audit, AuditStatus.ANALYZING)
 
