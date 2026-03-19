@@ -701,12 +701,12 @@ function ProductHero({ product, score }: { product: ProductData; score: number }
   );
 }
 
-/* ─── Category Card ─── */
+/* ─── Category Card — always open, issues in your face ─── */
 function CategoryCard({ category, issues, delay = 0 }: { category: string; issues: CategoryIssue[]; delay?: number }) {
-  const [expanded, setExpanded] = useState(false);
   const [show, setShow] = useState(false);
   const label = CATEGORY_LABELS[category] || category;
   const highCount = issues.filter(i => i.impact === "high").length;
+  const impactColor = highCount > 0 ? "#ef4444" : issues.some(i => i.impact === "medium") ? "#f59e0b" : "#22c55e";
 
   useEffect(() => { setTimeout(() => setShow(true), delay); }, [delay]);
 
@@ -716,63 +716,82 @@ function CategoryCard({ category, issues, delay = 0 }: { category: string; issue
     <div style={{
       borderRadius: "10px", overflow: "hidden",
       background: "rgba(13, 13, 32, 0.9)",
-      border: `1px solid ${highCount > 0 ? "rgba(239,68,68,0.08)" : "rgba(255,255,255,0.03)"}`,
+      border: `1px solid ${highCount > 0 ? "rgba(239,68,68,0.1)" : "rgba(255,255,255,0.03)"}`,
       opacity: show ? 1 : 0, transform: show ? "translateY(0)" : "translateY(10px)",
       transition: "all 0.5s cubic-bezier(0.16, 1, 0.3, 1)",
     }}>
-      <button onClick={() => setExpanded(!expanded)} style={{
-        width: "100%", display: "flex", alignItems: "center", gap: "14px",
-        padding: "14px 18px", border: "none", background: "none", cursor: "pointer", textAlign: "left",
+      {/* Header — not a button, just a label */}
+      <div style={{
+        display: "flex", alignItems: "center", gap: "14px",
+        padding: "14px 18px", borderBottom: "1px solid rgba(255,255,255,0.03)",
       }}>
+        {/* Severity bar */}
+        <div style={{
+          width: "3px", height: "32px", borderRadius: "2px",
+          background: impactColor, boxShadow: `0 0 8px ${impactColor}30`,
+        }} />
         <div style={{ flex: 1 }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <span style={{ fontSize: "13px", fontWeight: 600, color: "#e2e8f0" }}>{label}</span>
             {highCount > 0 && (
-              <span style={{ fontSize: "9px", fontWeight: 700, color: "#ef4444", padding: "2px 6px", borderRadius: "3px", background: "rgba(239,68,68,0.08)", letterSpacing: "0.06em" }}>
-                {highCount} HIGH
+              <span style={{
+                fontSize: "9px", fontWeight: 700, color: "#ef4444", padding: "2px 8px", borderRadius: "3px",
+                background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.12)",
+                letterSpacing: "0.08em", animation: "alert-flash 1.5s ease-in-out infinite",
+              }}>
+                {highCount} CRITICAL
               </span>
             )}
           </div>
           <span style={{ fontSize: "11px", color: "#3e4554", marginTop: "2px", display: "block" }}>
-            {issues.length} issue{issues.length !== 1 ? "s" : ""} detected
+            {issues.length} issue{issues.length !== 1 ? "s" : ""} found
           </span>
         </div>
-        <svg width="14" height="14" viewBox="0 0 20 20" fill="none" style={{ transform: expanded ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s", color: "#3e4554" }}>
-          <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </button>
+      </div>
 
-      {expanded && (
-        <div style={{ padding: "0 18px 14px", display: "flex", flexDirection: "column", gap: "6px" }}>
-          {issues.map((issue, i) => (
-            <div key={i} style={{ padding: "12px 14px", borderRadius: "8px", background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.03)" }}>
-              <div style={{ display: "flex", alignItems: "start", justifyContent: "space-between", gap: "12px" }}>
-                <div style={{ flex: 1 }}>
+      {/* Issues — always visible */}
+      <div style={{ padding: "8px 18px 14px", display: "flex", flexDirection: "column", gap: "6px" }}>
+        {issues.map((issue, i) => (
+          <div key={i} style={{
+            padding: "12px 14px", borderRadius: "8px",
+            background: issue.impact === "high" ? "rgba(239,68,68,0.02)" : "rgba(255,255,255,0.015)",
+            border: `1px solid ${issue.impact === "high" ? "rgba(239,68,68,0.06)" : "rgba(255,255,255,0.03)"}`,
+          }}>
+            <div style={{ display: "flex", alignItems: "start", justifyContent: "space-between", gap: "12px" }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  {issue.impact === "high" && (
+                    <div style={{
+                      width: "5px", height: "5px", borderRadius: "50%",
+                      background: "#ef4444", boxShadow: "0 0 6px #ef4444",
+                    }} />
+                  )}
                   <span style={{
                     fontSize: "9px", fontWeight: 700, textTransform: "uppercase",
                     color: IMPACT_COLORS[issue.impact] || "#8892a4",
-                    padding: "1px 6px", borderRadius: "2px",
-                    background: `${IMPACT_COLORS[issue.impact] || "#8892a4"}08`,
-                    letterSpacing: "0.08em",
+                    letterSpacing: "0.1em",
                   }}>
-                    {issue.impact}
+                    {issue.impact === "high" ? "HIGH IMPACT" : issue.impact === "medium" ? "MEDIUM" : "LOW"}
                   </span>
-                  <p style={{ color: "#e2e8f0", fontSize: "12px", fontWeight: 500, margin: "6px 0 2px", lineHeight: 1.5 }}>{issue.issue}</p>
-                  {issue.detail && issue.detail !== issue.issue && (
-                    <p style={{ color: "#3e4554", fontSize: "11px", margin: 0, lineHeight: 1.5 }}>{issue.detail}</p>
-                  )}
                 </div>
-                <button style={{
-                  padding: "6px 12px", borderRadius: "6px", border: "none",
-                  background: "linear-gradient(135deg, #e94560, #c13550)",
-                  color: "#fff", fontSize: "10px", fontWeight: 700, cursor: "pointer",
-                  whiteSpace: "nowrap", boxShadow: "0 2px 8px rgba(233, 69, 96, 0.2)",
-                }}>{issue.fix_action} <span style={{ opacity: 0.7 }}>({issue.fix_cost})</span></button>
+                <p style={{ color: "#e2e8f0", fontSize: "12px", fontWeight: 500, margin: "6px 0 2px", lineHeight: 1.5 }}>{issue.issue}</p>
+                {issue.detail && issue.detail !== issue.issue && (
+                  <p style={{ color: "#525c6c", fontSize: "11px", margin: 0, lineHeight: 1.5 }}>{issue.detail}</p>
+                )}
               </div>
+              <button style={{
+                padding: "6px 14px", borderRadius: "6px", border: "none",
+                background: "linear-gradient(135deg, #e94560, #c13550)",
+                color: "#fff", fontSize: "10px", fontWeight: 700, cursor: "pointer",
+                whiteSpace: "nowrap", boxShadow: "0 2px 8px rgba(233, 69, 96, 0.2)",
+                flexShrink: 0, marginTop: "2px",
+              }}>
+                {issue.fix_action} <span style={{ opacity: 0.6 }}>({issue.fix_cost})</span>
+              </button>
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -1145,6 +1164,7 @@ function AuditPageInner() {
       )}
 
       <style>{`
+        @keyframes alert-flash { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
         @keyframes threat-pulse { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
         @keyframes fade-in-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes results-cascade { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
