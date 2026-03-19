@@ -9,15 +9,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy dependency definition first for layer caching
-COPY api/pyproject.toml ./
+COPY api/pyproject.toml api/README.md ./
 
 # Create a minimal package so pip install works without full source
 RUN mkdir -p src && touch src/__init__.py && \
     pip install --no-cache-dir "." && \
     rm -rf src
-
-# Install Playwright browsers
-RUN playwright install --with-deps chromium
 
 # Copy API source code
 COPY api/ .
