@@ -14,14 +14,16 @@ Supports all major Amazon domains.
 
 import json
 import logging
+import random
 import re
 from html import unescape
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 import httpx
 from bs4 import BeautifulSoup
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
+from src.config import settings
 from src.scrapers.base import BaseScraper, ScrapedProduct, ScrapingError
 
 logger = logging.getLogger(__name__)
@@ -175,11 +177,11 @@ class AmazonScraper(BaseScraper):
         """Build stealth request headers for an Amazon domain."""
         ua = _USER_AGENTS[ua_index % len(_USER_AGENTS)]
         lang = _DOMAIN_LANG.get(domain, "en-US,en;q=0.9")
+        # Don't set Accept-Encoding — let httpx handle it (avoids brotli decode bug)
         return {
             "User-Agent": ua,
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
             "Accept-Language": lang,
-            "Accept-Encoding": "gzip, deflate, br",
             "DNT": "1",
             "Upgrade-Insecure-Requests": "1",
             "Sec-Fetch-Dest": "document",
@@ -187,6 +189,7 @@ class AmazonScraper(BaseScraper):
             "Sec-Fetch-Site": "none",
             "Sec-Fetch-User": "?1",
             "Cache-Control": "max-age=0",
+            "Referer": f"https://www.google.com/search?q=amazon+{domain}",
         }
 
     @retry(
@@ -196,17 +199,71 @@ class AmazonScraper(BaseScraper):
         reraise=True,
     )
     async def _fetch_page(self, url: str, asin: str, domain: str, attempt: int = 0) -> str:
-        """Fetch Amazon product page HTML with anti-bot handling."""
-        # Build a clean product URL (avoids tracking params that trigger blocks)
+        """Fetch Amazon product page HTML. Uses ScraperAPI if key set, else direct."""
         clean_url = f"https://www.{domain}/dp/{asin}"
 
+        # ── ScraperAPI path (handles CAPTCHA, IP rotation, etc.) ──
+        if settings.SCRAPERAPI_KEY:
+            return await self._fetch_via_scraperapi(url, asin, clean_url)
+
+        # ── Direct fetch (works from residential IPs, blocked from DCs) ──
+        return await self._fetch_direct(url, asin, domain, clean_url, attempt)
+
+    async def _fetch_via_scraperapi(self, url: str, asin: str, clean_url: str) -> str:
+        """Fetch through ScraperAPI proxy (free 1000 calls/mo)."""
+        api_url = (
+            f"http://api.scraperapi.com"
+            f"?api_key={settings.SCRAPERAPI_KEY}"
+            f"&url={quote(clean_url, safe='')}"
+            f"&render=false"
+            f"&country_code=us"
+        )
+
+        async with httpx.AsyncClient(
+            follow_redirects=True,
+            timeout=60.0,  # ScraperAPI can take longer
+        ) as client:
+            resp = await client.get(api_url)
+
+            if resp.status_code == 403:
+                raise ScrapingError(
+                    f"ScraperAPI auth failed — check SCRAPERAPI_KEY",
+                    url=url, status_code=403,
+                )
+
+            if resp.status_code == 404:
+                raise ScrapingError(
+                    f"Product not found on Amazon (404). ASIN: {asin}",
+                    url=url, status_code=404,
+                )
+
+            if resp.status_code >= 400:
+                logger.warning("ScraperAPI returned %s for %s", resp.status_code, asin)
+                raise ScrapingError(
+                    f"ScraperAPI returned HTTP {resp.status_code} for {asin}",
+                    url=url, status_code=resp.status_code,
+                )
+
+            html = resp.text
+
+            if "captcha" in html.lower() or "Type the characters you see" in html:
+                logger.warning("CAPTCHA even through ScraperAPI for %s", asin)
+                raise ScrapingError(
+                    f"Amazon captcha triggered for ASIN: {asin}",
+                    url=url, status_code=503,
+                )
+
+            logger.info("ScraperAPI fetch OK for ASIN %s (%d bytes)", asin, len(html))
+            return html
+
+    async def _fetch_direct(self, url: str, asin: str, domain: str, clean_url: str, attempt: int) -> str:
+        """Direct fetch with stealth headers (works from residential IPs)."""
         headers = self._build_headers(domain, ua_index=attempt)
 
         async with httpx.AsyncClient(
             headers=headers,
             follow_redirects=True,
             timeout=20.0,
-            transport=httpx.AsyncHTTPTransport(local_address="0.0.0.0"),
         ) as client:
             resp = await client.get(clean_url)
 
@@ -214,33 +271,28 @@ class AmazonScraper(BaseScraper):
                 logger.warning("Amazon returned 503 (captcha/block) for %s", asin)
                 raise ScrapingError(
                     f"Amazon blocked the request (503). ASIN: {asin}",
-                    url=url,
-                    status_code=503,
+                    url=url, status_code=503,
                 )
 
             if resp.status_code == 404:
                 raise ScrapingError(
                     f"Product not found on Amazon (404). ASIN: {asin}",
-                    url=url,
-                    status_code=404,
+                    url=url, status_code=404,
                 )
 
             if resp.status_code >= 400:
                 raise ScrapingError(
                     f"Amazon returned HTTP {resp.status_code} for {asin}",
-                    url=url,
-                    status_code=resp.status_code,
+                    url=url, status_code=resp.status_code,
                 )
 
             html = resp.text
 
-            # Detect captcha / robot check page
             if "captcha" in html.lower() or "Type the characters you see" in html:
                 logger.warning("Amazon captcha detected for %s", asin)
                 raise ScrapingError(
                     f"Amazon captcha triggered for ASIN: {asin}",
-                    url=url,
-                    status_code=503,
+                    url=url, status_code=503,
                 )
 
             return html
