@@ -59,6 +59,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             async with engine.begin() as conn:
                 migrations = [
                     "ALTER TABLE users ADD COLUMN IF NOT EXISTS google_ai_api_key TEXT",
+                    "ALTER TABLE audit_results ADD COLUMN IF NOT EXISTS category_issues JSONB DEFAULT '{}'",
+                    "ALTER TABLE audit_results ADD COLUMN IF NOT EXISTS fix_costs JSONB DEFAULT '{}'",
                 ]
                 for sql in migrations:
                     try:
