@@ -9,7 +9,7 @@ from datetime import datetime
 
 from arq import create_pool
 from arq.connections import RedisSettings
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, HttpUrl
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -90,6 +90,7 @@ async def _enqueue_audit(audit_id: str) -> None:
 @router.post("/free", response_model=AuditResponse, status_code=201)
 async def create_free_audit(
     request: AuditRequest,
+    background_tasks: BackgroundTasks,
     session: AsyncSession = Depends(get_async_session),
 ) -> AuditResult:
     """
@@ -106,9 +107,9 @@ async def create_free_audit(
     session.add(audit)
     await session.commit()
 
-    await _enqueue_audit(str(audit.id))
+    # Run pipeline in background — return immediately so frontend can poll
+    background_tasks.add_task(_enqueue_audit, str(audit.id))
 
-    # Refresh — pipeline may have updated the record via its own session
     await session.refresh(audit)
     return audit
 
@@ -137,6 +138,7 @@ async def get_audit_status(
 @router.post("", response_model=AuditResponse, status_code=201)
 async def create_audit(
     request: AuditRequest,
+    background_tasks: BackgroundTasks,
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ) -> AuditResult:
@@ -154,9 +156,9 @@ async def create_audit(
     session.add(audit)
     await session.commit()
 
-    await _enqueue_audit(str(audit.id))
+    # Run pipeline in background — return immediately so frontend can poll
+    background_tasks.add_task(_enqueue_audit, str(audit.id))
 
-    # Refresh — pipeline may have updated the record via its own session
     await session.refresh(audit)
     return audit
 
