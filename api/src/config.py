@@ -97,14 +97,17 @@ class Settings(BaseSettings):
     @property
     def cors_origins(self) -> list[str]:
         """Allowed CORS origins."""
-        origins = [self.WEB_URL]
+        origins = [
+            self.WEB_URL,
+            "https://web-sandy-nine-59.vercel.app",
+        ]
         if not self.is_production:
             origins.extend([
                 "http://localhost:3000",
                 "http://localhost:3001",
                 "http://127.0.0.1:3000",
             ])
-        return origins
+        return [o for o in origins if o]
 
 
 @lru_cache
