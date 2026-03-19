@@ -439,8 +439,8 @@ function ProductDetailContent() {
       setEditedDescription(res.optimized.description);
       setEditedTags(res.optimized.tags);
       setEditMode(false);
-    } catch {
-      alert("Optimization failed. Try again.");
+    } catch (e: any) {
+      alert(e?.message || "Optimization failed. Try again.");
     } finally {
       setGenerating(false);
     }

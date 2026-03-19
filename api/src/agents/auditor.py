@@ -1,28 +1,23 @@
 """
-Auditor Agent — Listing Analyzer
+Auditor Agent — Amazon Listing Analyzer with Fixit Integration
 
-The Auditor is the analyst of Malak. Given product data from Scout, it:
-1. Scores the listing across 6 dimensions using rule-based heuristics
-2. Uses LLM to generate qualitative analysis and recommendations
-3. Returns a comprehensive audit with actionable improvements
+The Auditor scores a product listing across 6 dimensions, identifies
+specific fixable issues per category, and attaches token costs to each
+fix action. The audit is FREE — the fix actions cost tokens.
 
 Scoring dimensions (weighted):
-    - Title (20%): Length, keyword presence, readability
-    - Images (20%): Count, variety
-    - Pricing (15%): Price present, discount shown
-    - Reviews (15%): Rating, count
-    - SEO (15%): Keyword density, bullet points
-    - Content (15%): Description quality, bullet point count
+    - Title (20%): Length, keyword presence, readability, structure
+    - Images (20%): Count, variety, video
+    - Pricing (15%): Price display, discount, psychology
+    - Reviews (15%): Rating, count, social proof
+    - SEO (15%): Keywords, bullets, description density
+    - Content (15%): Description quality, bullet detail, brand
 
-Input:
-    - product (dict): Normalized product data from Scout
-
-Output:
-    - overall_score (float): 0-100 listing quality score
-    - dimension_scores (dict): Breakdown by category
-    - strengths (list[str]): What's working well
-    - weaknesses (list[str]): What needs improvement
-    - recommendations (list[dict]): Prioritized improvement list
+Output includes:
+    - overall_score, dimension_scores (rule-based)
+    - category_issues: per-category issues with fix_action + token_cost
+    - strengths, weaknesses (LLM-enhanced)
+    - recommendations (LLM-generated, actionable)
 """
 
 import logging
@@ -43,6 +38,16 @@ WEIGHTS = {
     "content": 0.15,
 }
 
+# Token costs per fix action
+FIX_COSTS = {
+    "title": 5,
+    "bullets": 8,
+    "description": 8,
+    "images": 3,
+    "keywords": 5,
+    "competitive": 10,
+}
+
 
 def score_title(product: dict) -> tuple[int, list[str], list[str]]:
     """Score title quality. Returns (score, strengths, weaknesses)."""
@@ -56,16 +61,19 @@ def score_title(product: dict) -> tuple[int, list[str], list[str]]:
 
     length = len(title)
 
-    # Length scoring (ideal: 80-150 chars for Amazon, 50-70 for Shopify)
-    if 60 <= length <= 200:
+    # Length scoring (ideal: 80-200 chars for Amazon)
+    if 80 <= length <= 200:
         score += 40
         strengths.append(f"Good title length ({length} chars)")
-    elif 40 <= length < 60:
-        score += 25
-        weaknesses.append(f"Title is short ({length} chars) — aim for 80-150 characters")
+    elif 60 <= length < 80:
+        score += 30
+        weaknesses.append(f"Title is slightly short ({length} chars) — aim for 80-200 characters")
     elif length > 200:
         score += 20
         weaknesses.append(f"Title is too long ({length} chars) — may get truncated in search")
+    elif 40 <= length < 60:
+        score += 15
+        weaknesses.append(f"Title is short ({length} chars) — missing keywords and details")
     else:
         score += 10
         weaknesses.append(f"Title is very short ({length} chars) — missing keywords and details")
@@ -87,15 +95,15 @@ def score_title(product: dict) -> tuple[int, list[str], list[str]]:
     elif brand:
         weaknesses.append(f"Brand '{brand}' not found in title — add it for brand recognition")
     else:
-        score += 5  # No brand to check, partial credit
+        score += 5
 
-    # Capitalization check (all caps is bad)
+    # Capitalization check
     if title.isupper():
         weaknesses.append("Title is ALL CAPS — use Title Case for better readability")
     else:
         score += 10
 
-    # No special character spam
+    # Special character spam
     special_chars = sum(1 for c in title if c in "!@#$%^&*(){}[]|\\")
     if special_chars <= 2:
         score += 15
@@ -117,7 +125,6 @@ def score_images(product: dict) -> tuple[int, list[str], list[str]]:
 
     score = 0
 
-    # Count scoring (ideal: 5-9 images)
     if count >= 7:
         score += 60
         strengths.append(f"Excellent image count ({count} images)")
@@ -131,17 +138,14 @@ def score_images(product: dict) -> tuple[int, list[str], list[str]]:
         score += 15
         weaknesses.append(f"Only {count} image(s) — this significantly hurts conversion")
 
-    # Video presence
     videos = product.get("video_urls", [])
     if videos:
         score += 20
         strengths.append("Has product video — great for engagement")
     else:
-        score += 0
         weaknesses.append("No product video — videos increase conversion by 20-30%")
 
-    # Basic score boost for having images at all
-    score += 20
+    score += 20  # Base credit for having images
 
     return min(score, 100), strengths, weaknesses
 
@@ -157,19 +161,16 @@ def score_pricing(product: dict) -> tuple[int, list[str], list[str]]:
     platform = product.get("platform", "")
 
     if price is None:
-        # Amazon defers price to JS — it IS displayed on the live page,
-        # we just can't extract it. Don't penalize heavily.
         if platform == "amazon":
             return 50, ["Price is displayed on the live listing"], [
-                "Price could not be extracted (Amazon renders it via JavaScript) — "
+                "Price could not be extracted (Amazon renders via JavaScript) — "
                 "score for this dimension is estimated"
             ]
         return 20, [], ["Price not found or not displayed — critical for conversion"]
 
-    score += 40  # Price exists
+    score += 40
     strengths.append(f"Price displayed: {product.get('currency', 'USD')} {price}")
 
-    # Discount/sale price
     if original_price and original_price > price:
         discount = round((1 - price / original_price) * 100)
         score += 30
@@ -178,7 +179,6 @@ def score_pricing(product: dict) -> tuple[int, list[str], list[str]]:
         score += 10
         weaknesses.append("No comparison/sale price shown — consider showing original price for anchoring")
 
-    # Price psychology (ending in .99, .97, etc.)
     price_str = f"{price:.2f}"
     if price_str.endswith(("99", "97", "95")):
         score += 15
@@ -186,7 +186,6 @@ def score_pricing(product: dict) -> tuple[int, list[str], list[str]]:
     else:
         score += 5
 
-    # Round number bonus (for premium products)
     if price == int(price) and price >= 50:
         score += 15
         strengths.append("Round price suggests premium positioning")
@@ -206,7 +205,6 @@ def score_reviews(product: dict) -> tuple[int, list[str], list[str]]:
     if rating is None and count == 0:
         return 30, [], ["No reviews yet — consider launching a review campaign"]
 
-    # Rating score
     if rating is not None:
         if rating >= 4.5:
             score += 40
@@ -219,25 +217,23 @@ def score_reviews(product: dict) -> tuple[int, list[str], list[str]]:
             weaknesses.append(f"Average rating ({rating}/5) — address negative feedback")
         else:
             score += 5
-            weaknesses.append(f"Low rating ({rating}/5) — urgent: review product quality and customer complaints")
+            weaknesses.append(f"Low rating ({rating}/5) — urgent: review product quality")
 
-    # Count score
     if count >= 100:
         score += 40
-        strengths.append(f"Strong review count ({count} reviews) — great social proof")
+        strengths.append(f"Strong review count ({count} reviews)")
     elif count >= 50:
         score += 30
         strengths.append(f"Good review count ({count} reviews)")
     elif count >= 10:
         score += 20
-        weaknesses.append(f"Only {count} reviews — aim for 50+ for strong social proof")
+        weaknesses.append(f"Only {count} reviews — aim for 50+ for social proof")
     elif count >= 1:
         score += 10
         weaknesses.append(f"Only {count} review(s) — need more social proof")
     else:
         weaknesses.append("Zero reviews — launch a review request campaign")
 
-    # Bonus for high rating + high count combo
     if rating and rating >= 4.0 and count >= 50:
         score += 20
         strengths.append("Strong rating + review count combination")
@@ -256,7 +252,6 @@ def score_seo(product: dict) -> tuple[int, list[str], list[str]]:
     description = product.get("description", "")
     search_terms = product.get("search_terms", [])
 
-    # Title length for SEO
     if len(title) >= 60:
         score += 25
     elif len(title) >= 40:
@@ -264,7 +259,6 @@ def score_seo(product: dict) -> tuple[int, list[str], list[str]]:
     else:
         weaknesses.append("Title too short for SEO — search engines prefer 60+ characters")
 
-    # Bullet points
     if len(bullets) >= 5:
         score += 25
         strengths.append(f"{len(bullets)} bullet points — good keyword coverage")
@@ -273,11 +267,10 @@ def score_seo(product: dict) -> tuple[int, list[str], list[str]]:
         weaknesses.append(f"Only {len(bullets)} bullet points — aim for 5+ for keyword density")
     elif len(bullets) >= 1:
         score += 5
-        weaknesses.append(f"Only {len(bullets)} bullet point(s) — this is hurting SEO")
+        weaknesses.append(f"Only {len(bullets)} bullet point(s) — hurting SEO")
     else:
         weaknesses.append("No bullet points — critical for keyword density and readability")
 
-    # Description
     if len(description) >= 300:
         score += 25
         strengths.append("Rich description with good detail")
@@ -286,16 +279,15 @@ def score_seo(product: dict) -> tuple[int, list[str], list[str]]:
         weaknesses.append("Description is short — expand for better SEO")
     elif description:
         score += 5
-        weaknesses.append("Description is very short — expand with keywords and details")
+        weaknesses.append("Description is very short — expand with keywords")
     else:
         weaknesses.append("No description found — add a keyword-rich description")
 
-    # Backend keywords / search terms
     if search_terms:
         score += 25
         strengths.append(f"{len(search_terms)} search terms found")
     else:
-        score += 5  # Not always visible in scraping
+        score += 5
 
     return min(score, 100), strengths, weaknesses
 
@@ -310,7 +302,6 @@ def score_content(product: dict) -> tuple[int, list[str], list[str]]:
     description = product.get("description", "")
     category = product.get("category", "")
 
-    # Bullet point quality
     if bullets:
         avg_length = sum(len(b) for b in bullets) / len(bullets)
         if avg_length >= 80:
@@ -324,7 +315,6 @@ def score_content(product: dict) -> tuple[int, list[str], list[str]]:
     else:
         weaknesses.append("No bullet points — add feature/benefit statements")
 
-    # Description richness
     if len(description) >= 500:
         score += 30
         strengths.append("Rich, detailed description")
@@ -332,18 +322,16 @@ def score_content(product: dict) -> tuple[int, list[str], list[str]]:
         score += 20
     elif len(description) >= 50:
         score += 10
-        weaknesses.append("Description needs more detail — expand with use cases and benefits")
+        weaknesses.append("Description needs more detail")
     else:
         weaknesses.append("Description is missing or minimal — huge missed opportunity")
 
-    # Category assignment
     if category:
         score += 20
         strengths.append(f"Product categorized: {category[:50]}")
     else:
         score += 5
 
-    # Brand presence
     if product.get("brand"):
         score += 20
         strengths.append(f"Brand identified: {product['brand']}")
@@ -353,37 +341,63 @@ def score_content(product: dict) -> tuple[int, list[str], list[str]]:
     return min(score, 100), strengths, weaknesses
 
 
-AUDIT_SYSTEM_PROMPT = """You are Malak AI's Auditor — an expert ecommerce listing analyst.
+# ── LLM System Prompt ─────────────────────────────────────────
 
-Given a product listing's data and its scores across 6 dimensions, generate:
-1. The top 3 STRENGTHS (what's working well)
-2. The top 5 WEAKNESSES (prioritized by impact on conversions and sales)
-3. For EACH weakness, a specific, actionable RECOMMENDATION
+AUDIT_SYSTEM_PROMPT = """You are Kansa's Auditor — an expert Amazon listing optimizer.
 
-Your recommendations must be:
-- Specific (not "improve your title" but "add the keyword 'wireless' and your target use case")
-- Actionable (something the seller can do TODAY)
-- Prioritized by estimated impact on sales
+You analyze product listings and produce a structured audit with:
+1. Per-category issues: specific, fixable problems grouped by category
+2. Overall strengths and weaknesses
+3. Actionable recommendations prioritized by sales impact
+
+For each ISSUE, be extremely specific. Not "improve your title" but:
+"Missing primary keyword 'wireless earbuds' (estimated 140K monthly searches). Title is 47 chars — Amazon allows up to 200. Brand name is at position 6, should be position 1."
+
+The audit output must be marketplace-aware. Consider:
+- The marketplace language and search behavior
+- Local keyword patterns and common search terms
+- Currency and pricing norms for the region
+
+Categories and their fix actions:
+- title: Issues with the product title → Fix: AI title rewrite (5 tokens)
+- bullets: Issues with bullet points → Fix: AI bullet rewrite (8 tokens)
+- description: Issues with product description → Fix: AI description rewrite (8 tokens)
+- images: Issues with product images → Fix: AI image recommendations (3 tokens)
+- keywords: Issues with SEO/backend keywords → Fix: AI keyword optimization (5 tokens)
+- competitive: Market positioning issues → Fix: AI strategy report (10 tokens)
 
 Respond in JSON format:
 {
-    "summary": "One paragraph executive summary of this listing's health",
+    "category_issues": {
+        "title": [
+            {
+                "issue": "Specific problem description",
+                "impact": "high|medium|low",
+                "detail": "Why this matters and what the ideal state looks like"
+            }
+        ],
+        "bullets": [...],
+        "description": [...],
+        "images": [...],
+        "keywords": [...],
+        "competitive": [...]
+    },
+    "summary": "One paragraph executive summary of listing health",
     "strengths": ["strength 1", "strength 2", "strength 3"],
     "weaknesses": ["weakness 1", "weakness 2", ...],
     "recommendations": [
         {
             "title": "Short action title",
-            "description": "Detailed explanation of what to do and why",
+            "description": "What to do and why",
             "impact": "high|medium|low",
-            "effort": "easy|medium|hard",
-            "category": "title|images|pricing|reviews|seo|content"
+            "category": "title|bullets|description|images|keywords|competitive"
         }
     ]
 }"""
 
 
 class AuditorAgent(BaseAgent):
-    """Analyzes product listings and produces comprehensive quality audits."""
+    """Analyzes Amazon product listings and produces audits with fixable issues."""
 
     @property
     def name(self) -> str:
@@ -391,7 +405,7 @@ class AuditorAgent(BaseAgent):
 
     @property
     def description(self) -> str:
-        return "Listing analyzer — scores and evaluates every aspect of a product page"
+        return "Amazon listing analyzer — scores, identifies fixable issues, attaches token costs"
 
     async def validate_input(self, input_data: dict[str, Any]) -> list[str]:
         errors: list[str] = []
@@ -400,7 +414,7 @@ class AuditorAgent(BaseAgent):
         return errors
 
     async def execute(self, context: AgentContext, input_data: dict[str, Any]) -> AgentResult:
-        """Analyze a product listing and produce an audit report."""
+        """Analyze a product listing and produce an audit with fixable issues."""
         product = input_data["product"]
 
         logger.info("Auditor: analyzing listing — '%s'", product.get("title", "")[:50])
@@ -426,16 +440,27 @@ class AuditorAgent(BaseAgent):
             sum(dimension_scores[dim] * weight for dim, weight in WEIGHTS.items())
         )
 
-        # Collect all strengths and weaknesses
         all_strengths = title_s + image_s + price_s + review_s + seo_s + content_s
         all_weaknesses = title_w + image_w + price_w + review_w + seo_w + content_w
 
-        # 2. LLM-powered analysis and recommendations
+        # 2. LLM-powered analysis with per-category issues
+        category_issues = {}
         try:
+            # Detect marketplace from URL for marketplace-aware scoring
+            url = product.get("url", "")
+            marketplace = "amazon.com"
+            for domain in ["amazon.com.mx", "amazon.com.br", "amazon.co.uk", "amazon.de",
+                           "amazon.es", "amazon.fr", "amazon.it", "amazon.co.jp",
+                           "amazon.in", "amazon.ae", "amazon.sa", "amazon.com.au",
+                           "amazon.ca", "amazon.com"]:
+                if domain in url:
+                    marketplace = domain
+                    break
+
             llm_analysis = await complete_json(
                 system=AUDIT_SYSTEM_PROMPT,
                 prompt=(
-                    f"Analyze this product listing:\n\n"
+                    f"Analyze this Amazon listing from {marketplace}:\n\n"
                     f"Title: {product.get('title', 'N/A')}\n"
                     f"Brand: {product.get('brand', 'N/A')}\n"
                     f"Price: {product.get('currency', 'USD')} {product.get('price', 'N/A')}\n"
@@ -443,7 +468,8 @@ class AuditorAgent(BaseAgent):
                     f"Images: {len(product.get('images', []))} images\n"
                     f"Bullet points: {len(product.get('bullet_points', []))}\n"
                     f"Description length: {len(product.get('description', ''))} chars\n"
-                    f"Platform: {product.get('platform', 'unknown')}\n\n"
+                    f"Platform: {product.get('platform', 'unknown')}\n"
+                    f"Marketplace: {marketplace}\n\n"
                     f"Dimension scores:\n"
                     f"  Title: {title_score}/100\n"
                     f"  Images: {image_score}/100\n"
@@ -461,6 +487,7 @@ class AuditorAgent(BaseAgent):
                 ),
             )
 
+            category_issues = llm_analysis.get("category_issues", {})
             strengths = llm_analysis.get("strengths", all_strengths[:3])
             weaknesses = llm_analysis.get("weaknesses", all_weaknesses[:5])
             recommendations = llm_analysis.get("recommendations", [])
@@ -471,12 +498,35 @@ class AuditorAgent(BaseAgent):
             strengths = all_strengths[:5]
             weaknesses = all_weaknesses[:5]
             recommendations = [
-                {"title": w, "description": w, "impact": "medium", "effort": "medium", "category": "general"}
+                {"title": w, "description": w, "impact": "medium", "category": "general"}
                 for w in all_weaknesses[:5]
             ]
-            summary = f"Listing scored {overall_score}/100. Found {len(all_strengths)} strengths and {len(all_weaknesses)} areas for improvement."
+            summary = (
+                f"Listing scored {overall_score}/100. "
+                f"Found {len(all_strengths)} strengths and {len(all_weaknesses)} areas for improvement."
+            )
+            # Build basic category_issues from rule-based weaknesses
+            category_issues = _build_fallback_issues(title_w, image_w, price_w, seo_w, content_w)
 
-        logger.info("Auditor: complete — score=%d/100", overall_score)
+        # 3. Attach fix costs to category issues
+        for cat, issues in category_issues.items():
+            fix_key = cat if cat in FIX_COSTS else "keywords"
+            for issue in issues:
+                issue["fix_cost"] = FIX_COSTS.get(fix_key, 5)
+                issue["fix_action"] = _get_fix_action(cat)
+
+        # Count total fixable issues and total token cost
+        total_issues = sum(len(issues) for issues in category_issues.values())
+        total_fix_cost = sum(
+            issue.get("fix_cost", 0)
+            for issues in category_issues.values()
+            for issue in issues
+        )
+
+        logger.info(
+            "Auditor: complete — score=%d/100, issues=%d, fix_cost=%d tokens",
+            overall_score, total_issues, total_fix_cost,
+        )
 
         return AgentResult(
             agent_name=self.name,
@@ -484,9 +534,43 @@ class AuditorAgent(BaseAgent):
             data={
                 "overall_score": overall_score,
                 "dimension_scores": dimension_scores,
+                "category_issues": category_issues,
+                "fix_costs": FIX_COSTS,
+                "total_issues": total_issues,
+                "total_fix_cost": total_fix_cost,
                 "summary": summary,
                 "strengths": strengths,
                 "weaknesses": weaknesses,
                 "recommendations": recommendations,
             },
         )
+
+
+def _get_fix_action(category: str) -> str:
+    """Get the fix action label for a category."""
+    actions = {
+        "title": "Rewrite Title",
+        "bullets": "Rewrite Bullets",
+        "description": "Rewrite Description",
+        "images": "Image Suggestions",
+        "keywords": "Optimize Keywords",
+        "competitive": "Strategy Report",
+    }
+    return actions.get(category, f"Fix {category.title()}")
+
+
+def _build_fallback_issues(
+    title_w: list, image_w: list, price_w: list, seo_w: list, content_w: list
+) -> dict:
+    """Build category_issues from rule-based weaknesses when LLM fails."""
+    issues: dict[str, list] = {}
+    for cat, weaknesses in [
+        ("title", title_w), ("images", image_w),
+        ("keywords", seo_w), ("description", content_w),
+    ]:
+        if weaknesses:
+            issues[cat] = [
+                {"issue": w, "impact": "medium", "detail": w}
+                for w in weaknesses
+            ]
+    return issues

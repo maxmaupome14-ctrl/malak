@@ -246,7 +246,7 @@ async def generate_optimization(
     if not anthropic_key and not openai_key:
         raise HTTPException(
             status_code=400,
-            detail="AI service not available. Contact support.",
+            detail="No AI API key configured. Go to Settings → API Keys to add your OpenAI or Anthropic key.",
         )
 
     # Build the prompt
@@ -411,7 +411,7 @@ async def bulk_generate_optimization(
     if not anthropic_key and not openai_key:
         raise HTTPException(
             status_code=400,
-            detail="AI service not available. Contact support.",
+            detail="No AI API key configured. Go to Settings → API Keys to add your OpenAI or Anthropic key.",
         )
 
     results: list[dict] = []

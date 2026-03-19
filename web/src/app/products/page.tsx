@@ -294,9 +294,9 @@ function ProductsContent() {
       setEditedDescription(res.optimized.description);
       setEditedTags(res.optimized.tags);
       setEditMode(false);
-    } catch {
+    } catch (e: any) {
       setResult(null);
-      alert("Optimization failed. Try again.");
+      alert(e?.message || "Optimization failed. Try again.");
     } finally {
       setGenerating(false);
     }

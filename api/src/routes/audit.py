@@ -42,6 +42,8 @@ class AuditResponse(BaseModel):
     strengths: list = []
     weaknesses: list = []
     recommendations: list = []
+    category_issues: dict = {}
+    fix_costs: dict = {}
     generated_copy: dict = {}
     competitive_data: dict = {}
     error_message: str | None = None

@@ -31,6 +31,7 @@ from src.routes.marketing import router as marketing_router
 from src.routes.webhooks import router as webhooks_router
 from src.routes.shopify_billing import router as shopify_billing_router
 from src.routes.media import router as media_router
+from src.routes.tokens import router as tokens_router
 
 
 @asynccontextmanager
@@ -46,6 +47,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         from src.models.audit import AuditResult  # noqa: F401
         from src.models.optimization import Optimization  # noqa: F401
         from src.models.media import GeneratedMedia  # noqa: F401
+        from src.models.token import TokenWallet, TokenTransaction  # noqa: F401
 
         try:
             async with engine.begin() as conn:
@@ -110,6 +112,7 @@ app.include_router(marketing_router, prefix="/marketing", tags=["marketing"])
 app.include_router(webhooks_router, tags=["webhooks"])
 app.include_router(shopify_billing_router, prefix="/billing", tags=["shopify-billing"])
 app.include_router(media_router, prefix="/media", tags=["media"])
+app.include_router(tokens_router, prefix="/tokens", tags=["tokens"])
 
 
 # ── Health Check ──────────────────────────────────────

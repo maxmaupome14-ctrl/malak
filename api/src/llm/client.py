@@ -1,32 +1,114 @@
 """
-Unified LLM client that works with OpenAI, Anthropic, or any OpenAI-compatible endpoint.
+Unified LLM client — supports Anthropic (primary) and OpenAI (fallback).
 
-Uses the OpenAI SDK as the universal interface since most providers
-(Ollama, vLLM, LiteLLM, Together, Groq) expose OpenAI-compatible APIs.
-
-Cost optimization:
-- Use cheap models (gpt-4o-mini, haiku) for routine scoring
-- Use capable models (gpt-4o, sonnet) for recommendation generation
-- JSON mode to minimize token waste
+Kansa uses Claude Opus 4.6 as the default model for all AI operations.
+OpenAI is kept as a fallback if Anthropic key is not configured.
 """
 
 import json
 import logging
 import re
 
+import anthropic
 from openai import AsyncOpenAI
 
 from src.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Default models
+ANTHROPIC_MODEL = "claude-opus-4-6-20250514"
+OPENAI_MODEL = "gpt-4o"
 
-def _get_client() -> AsyncOpenAI:
-    """Create an OpenAI client with current settings."""
+
+def _get_anthropic_client() -> anthropic.AsyncAnthropic | None:
+    """Create an Anthropic client if API key is configured."""
+    key = settings.ANTHROPIC_API_KEY
+    if not key:
+        return None
+    return anthropic.AsyncAnthropic(api_key=key)
+
+
+def _get_openai_client() -> AsyncOpenAI | None:
+    """Create an OpenAI client if API key is configured."""
+    key = settings.OPENAI_API_KEY
+    if not key:
+        return None
     return AsyncOpenAI(
-        api_key=settings.OPENAI_API_KEY,
+        api_key=key,
         base_url=settings.OPENAI_BASE_URL,
     )
+
+
+async def _anthropic_complete(
+    prompt: str,
+    system: str = "",
+    model: str = ANTHROPIC_MODEL,
+    temperature: float = 0.3,
+    max_tokens: int = 4096,
+) -> str:
+    """Send a completion request via Anthropic API."""
+    client = _get_anthropic_client()
+    if not client:
+        raise RuntimeError("Anthropic API key not configured")
+
+    logger.debug("Anthropic request: model=%s max_tokens=%d", model, max_tokens)
+
+    kwargs: dict = {
+        "model": model,
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+        "messages": [{"role": "user", "content": prompt}],
+    }
+    if system:
+        kwargs["system"] = system
+
+    response = await client.messages.create(**kwargs)
+
+    content = ""
+    for block in response.content:
+        if block.type == "text":
+            content += block.text
+
+    logger.debug(
+        "Anthropic response: %d chars, input=%d output=%d tokens",
+        len(content),
+        response.usage.input_tokens,
+        response.usage.output_tokens,
+    )
+    return content
+
+
+async def _openai_complete(
+    prompt: str,
+    system: str = "",
+    model: str | None = None,
+    temperature: float = 0.3,
+    max_tokens: int = 4096,
+) -> str:
+    """Send a completion request via OpenAI API."""
+    client = _get_openai_client()
+    if not client:
+        raise RuntimeError("OpenAI API key not configured")
+
+    use_model = model or settings.OPENAI_MODEL or OPENAI_MODEL
+    logger.debug("OpenAI request: model=%s max_tokens=%d", use_model, max_tokens)
+
+    messages: list[dict[str, str]] = []
+    if system:
+        messages.append({"role": "system", "content": system})
+    messages.append({"role": "user", "content": prompt})
+
+    response = await client.chat.completions.create(
+        model=use_model,
+        messages=messages,
+        temperature=temperature,
+        max_tokens=max_tokens,
+    )
+
+    content = response.choices[0].message.content or ""
+    logger.debug("OpenAI response: %d chars, usage=%s", len(content), response.usage)
+    return content
 
 
 async def complete(
@@ -35,43 +117,36 @@ async def complete(
     model: str | None = None,
     temperature: float = 0.3,
     max_tokens: int = 4096,
+    provider: str | None = None,
 ) -> str:
     """
-    Send a chat completion request to the configured LLM.
+    Send a chat completion request to the best available LLM.
 
-    Args:
-        prompt: User message content.
-        system: System message (sets agent behavior).
-        model: Override model (defaults to settings.OPENAI_MODEL).
-        temperature: Sampling temperature (lower = more deterministic).
-        max_tokens: Maximum response length.
-
-    Returns:
-        The assistant's response text.
+    Priority: Anthropic (Opus 4.6) → OpenAI (GPT-4o)
+    Use provider="anthropic" or provider="openai" to force a specific provider.
     """
-    client = _get_client()
-    messages: list[dict[str, str]] = []
+    # Determine provider
+    if provider == "openai":
+        return await _openai_complete(prompt, system, model, temperature, max_tokens)
+    if provider == "anthropic":
+        return await _anthropic_complete(prompt, system, model or ANTHROPIC_MODEL, temperature, max_tokens)
 
-    if system:
-        messages.append({"role": "system", "content": system})
-    messages.append({"role": "user", "content": prompt})
+    # Auto-select: prefer Anthropic
+    if settings.ANTHROPIC_API_KEY:
+        try:
+            return await _anthropic_complete(
+                prompt, system, model or ANTHROPIC_MODEL, temperature, max_tokens
+            )
+        except Exception as e:
+            logger.warning("Anthropic failed, falling back to OpenAI: %s", e)
 
-    logger.debug("LLM request: model=%s tokens=%d", model or settings.OPENAI_MODEL, max_tokens)
+    if settings.OPENAI_API_KEY:
+        return await _openai_complete(prompt, system, model, temperature, max_tokens)
 
-    response = await client.chat.completions.create(
-        model=model or settings.OPENAI_MODEL,
-        messages=messages,
-        temperature=temperature,
-        max_tokens=max_tokens,
+    raise RuntimeError(
+        "No AI API key configured. Set ANTHROPIC_API_KEY (recommended) "
+        "or OPENAI_API_KEY in the server .env file."
     )
-
-    content = response.choices[0].message.content or ""
-    logger.debug(
-        "LLM response: %d chars, usage=%s",
-        len(content),
-        response.usage,
-    )
-    return content
 
 
 async def complete_json(
@@ -79,24 +154,12 @@ async def complete_json(
     system: str = "",
     model: str | None = None,
     temperature: float = 0.2,
+    provider: str | None = None,
 ) -> dict:
     """
     Send a completion request and parse the response as JSON.
 
-    Instructs the LLM to respond only with valid JSON and strips
-    any markdown code fences that models sometimes add.
-
-    Args:
-        prompt: User message content.
-        system: System message (will have JSON instruction appended).
-        model: Override model.
-        temperature: Lower default for structured output.
-
-    Returns:
-        Parsed JSON as a Python dict.
-
-    Raises:
-        json.JSONDecodeError: If the LLM response is not valid JSON.
+    Instructs the LLM to respond only with valid JSON.
     """
     json_instruction = (
         "\n\nIMPORTANT: Respond ONLY with valid JSON. "
@@ -108,6 +171,7 @@ async def complete_json(
         system=system + json_instruction,
         model=model,
         temperature=temperature,
+        provider=provider,
     )
 
     # Strip markdown code fences if present

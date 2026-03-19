@@ -72,15 +72,17 @@ class AuditResult(Base):
     strengths: Mapped[list] = mapped_column(JSONB, default=list)
     weaknesses: Mapped[list] = mapped_column(JSONB, default=list)
     recommendations: Mapped[list] = mapped_column(JSONB, default=list)
-    # Each recommendation:
+
+    # ── Fixit Issues (per-category) ───────────────
+    category_issues: Mapped[dict] = mapped_column(JSONB, default=dict)
     # {
-    #     "title": "Optimize title with primary keyword",
-    #     "description": "...",
-    #     "impact": 8,
-    #     "effort": 3,
-    #     "priority": 1,
-    #     "category": "seo"
+    #     "title": [{"issue": "...", "impact": "high", "detail": "...",
+    #                 "fix_cost": 5, "fix_action": "Rewrite Title"}],
+    #     "bullets": [...], "description": [...],
+    #     "images": [...], "keywords": [...], "competitive": [...]
     # }
+    fix_costs: Mapped[dict] = mapped_column(JSONB, default=dict)
+    # {"title": 5, "bullets": 8, "description": 8, "images": 3, "keywords": 5, "competitive": 10}
 
     # ── Generated Copy ───────────────────────────────
     generated_copy: Mapped[dict] = mapped_column(JSONB, default=dict)

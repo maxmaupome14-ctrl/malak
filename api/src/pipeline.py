@@ -86,12 +86,14 @@ async def run_audit_pipeline(ctx: dict, audit_id: str) -> None:
 
             audit_data = auditor_result.data
 
-            # Save audit scores immediately so frontend shows progress
+            # Save audit scores + fixit issues immediately
             audit.overall_score = audit_data.get("overall_score", 0)
             audit.dimension_scores = audit_data.get("dimension_scores", {})
             audit.strengths = audit_data.get("strengths", [])
             audit.weaknesses = audit_data.get("weaknesses", [])
             audit.recommendations = audit_data.get("recommendations", [])
+            audit.category_issues = audit_data.get("category_issues", {})
+            audit.fix_costs = audit_data.get("fix_costs", {})
             await session.commit()
 
             # ── Step 3: Spy + Copywriter — Run in parallel ─
