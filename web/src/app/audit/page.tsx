@@ -701,12 +701,22 @@ function ProductHero({ product, score }: { product: ProductData; score: number }
   );
 }
 
-/* ─── Category Card — always open, issues in your face ─── */
+/* ─── Lock Icon ─── */
+function LockIcon({ size = 12 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
+  );
+}
+
+/* ─── Category Card — show pain, lock the fix ─── */
 function CategoryCard({ category, issues, delay = 0 }: { category: string; issues: CategoryIssue[]; delay?: number }) {
   const [show, setShow] = useState(false);
   const label = CATEGORY_LABELS[category] || category;
   const highCount = issues.filter(i => i.impact === "high").length;
   const impactColor = highCount > 0 ? "#ef4444" : issues.some(i => i.impact === "medium") ? "#f59e0b" : "#22c55e";
+  const categoryCost = issues.reduce((s, i) => s + (i.fix_cost || 0), 0);
 
   useEffect(() => { setTimeout(() => setShow(true), delay); }, [delay]);
 
@@ -720,12 +730,11 @@ function CategoryCard({ category, issues, delay = 0 }: { category: string; issue
       opacity: show ? 1 : 0, transform: show ? "translateY(0)" : "translateY(10px)",
       transition: "all 0.5s cubic-bezier(0.16, 1, 0.3, 1)",
     }}>
-      {/* Header — not a button, just a label */}
+      {/* Header */}
       <div style={{
         display: "flex", alignItems: "center", gap: "14px",
         padding: "14px 18px", borderBottom: "1px solid rgba(255,255,255,0.03)",
       }}>
-        {/* Severity bar */}
         <div style={{
           width: "3px", height: "32px", borderRadius: "2px",
           background: impactColor, boxShadow: `0 0 8px ${impactColor}30`,
@@ -749,48 +758,102 @@ function CategoryCard({ category, issues, delay = 0 }: { category: string; issue
         </div>
       </div>
 
-      {/* Issues — always visible */}
-      <div style={{ padding: "8px 18px 14px", display: "flex", flexDirection: "column", gap: "6px" }}>
-        {issues.map((issue, i) => (
-          <div key={i} style={{
-            padding: "12px 14px", borderRadius: "8px",
-            background: issue.impact === "high" ? "rgba(239,68,68,0.02)" : "rgba(255,255,255,0.015)",
-            border: `1px solid ${issue.impact === "high" ? "rgba(239,68,68,0.06)" : "rgba(255,255,255,0.03)"}`,
-          }}>
-            <div style={{ display: "flex", alignItems: "start", justifyContent: "space-between", gap: "12px" }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                  {issue.impact === "high" && (
-                    <div style={{
-                      width: "5px", height: "5px", borderRadius: "50%",
-                      background: "#ef4444", boxShadow: "0 0 6px #ef4444",
-                    }} />
-                  )}
-                  <span style={{
-                    fontSize: "9px", fontWeight: 700, textTransform: "uppercase",
-                    color: IMPACT_COLORS[issue.impact] || "#8892a4",
-                    letterSpacing: "0.1em",
-                  }}>
-                    {issue.impact === "high" ? "HIGH IMPACT" : issue.impact === "medium" ? "MEDIUM" : "LOW"}
-                  </span>
-                </div>
-                <p style={{ color: "#e2e8f0", fontSize: "12px", fontWeight: 500, margin: "6px 0 2px", lineHeight: 1.5 }}>{issue.issue}</p>
-                {issue.detail && issue.detail !== issue.issue && (
-                  <p style={{ color: "#525c6c", fontSize: "11px", margin: 0, lineHeight: 1.5 }}>{issue.detail}</p>
+      {/* Issues — first one visible, rest blurred */}
+      <div style={{ padding: "8px 18px 0", display: "flex", flexDirection: "column", gap: "6px", position: "relative" }}>
+        {/* First issue — teaser, visible but fix locked */}
+        <div style={{
+          padding: "12px 14px", borderRadius: "8px",
+          background: issues[0].impact === "high" ? "rgba(239,68,68,0.02)" : "rgba(255,255,255,0.015)",
+          border: `1px solid ${issues[0].impact === "high" ? "rgba(239,68,68,0.06)" : "rgba(255,255,255,0.03)"}`,
+        }}>
+          <div style={{ display: "flex", alignItems: "start", justifyContent: "space-between", gap: "12px" }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                {issues[0].impact === "high" && (
+                  <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: "#ef4444", boxShadow: "0 0 6px #ef4444" }} />
                 )}
+                <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", color: IMPACT_COLORS[issues[0].impact] || "#8892a4", letterSpacing: "0.1em" }}>
+                  {issues[0].impact === "high" ? "HIGH IMPACT" : issues[0].impact === "medium" ? "MEDIUM" : "LOW"}
+                </span>
               </div>
-              <button style={{
-                padding: "6px 14px", borderRadius: "6px", border: "none",
-                background: "linear-gradient(135deg, #e94560, #c13550)",
-                color: "#fff", fontSize: "10px", fontWeight: 700, cursor: "pointer",
-                whiteSpace: "nowrap", boxShadow: "0 2px 8px rgba(233, 69, 96, 0.2)",
-                flexShrink: 0, marginTop: "2px",
-              }}>
-                {issue.fix_action} <span style={{ opacity: 0.6 }}>({issue.fix_cost})</span>
-              </button>
+              <p style={{ color: "#e2e8f0", fontSize: "12px", fontWeight: 500, margin: "6px 0 0", lineHeight: 1.5 }}>{issues[0].issue}</p>
+            </div>
+            {/* Fix button — locked */}
+            <div style={{
+              padding: "6px 14px", borderRadius: "6px",
+              background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)",
+              color: "#3e4554", fontSize: "10px", fontWeight: 700,
+              display: "flex", alignItems: "center", gap: "6px",
+              whiteSpace: "nowrap", flexShrink: 0, marginTop: "2px",
+            }}>
+              <LockIcon size={10} />
+              {issues[0].fix_action}
             </div>
           </div>
-        ))}
+        </div>
+
+        {/* Remaining issues — blurred with overlay */}
+        {issues.length > 1 && (
+          <div style={{ position: "relative" }}>
+            {/* Blurred preview */}
+            <div style={{ filter: "blur(6px)", opacity: 0.3, pointerEvents: "none", display: "flex", flexDirection: "column", gap: "6px" }}>
+              {issues.slice(1, 3).map((issue, i) => (
+                <div key={i} style={{
+                  padding: "12px 14px", borderRadius: "8px",
+                  background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.03)",
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <span style={{ fontSize: "9px", fontWeight: 700, color: "#8892a4" }}>{issue.impact.toUpperCase()}</span>
+                  </div>
+                  <p style={{ color: "#e2e8f0", fontSize: "12px", margin: "6px 0 0" }}>{issue.issue}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Gradient fade over blur */}
+            <div style={{
+              position: "absolute", inset: 0,
+              background: "linear-gradient(180deg, transparent 0%, rgba(13, 13, 32, 0.95) 60%)",
+              display: "flex", alignItems: "flex-end", justifyContent: "center",
+              paddingBottom: "4px",
+            }} />
+          </div>
+        )}
+      </div>
+
+      {/* Unlock CTA */}
+      <div style={{ padding: "10px 18px 16px", textAlign: "center" }}>
+        <button style={{
+          width: "100%", padding: "12px 20px", borderRadius: "8px", border: "none",
+          background: "linear-gradient(135deg, rgba(233, 69, 96, 0.08), rgba(233, 69, 96, 0.02))",
+          cursor: "pointer", position: "relative", overflow: "hidden",
+          display: "flex", alignItems: "center", justifyContent: "center", gap: "10px",
+          transition: "all 0.2s",
+        }}>
+          {/* Glow border */}
+          <div style={{
+            position: "absolute", inset: 0, borderRadius: "8px",
+            border: "1px solid rgba(233, 69, 96, 0.15)",
+            boxShadow: "0 0 20px rgba(233, 69, 96, 0.06), inset 0 0 20px rgba(233, 69, 96, 0.02)",
+          }} />
+          {/* Shimmer */}
+          <div style={{
+            position: "absolute", top: 0, left: "-100%", width: "100%", height: "100%",
+            background: "linear-gradient(90deg, transparent, rgba(233, 69, 96, 0.04), transparent)",
+            animation: "shimmer-lock 3s ease-in-out infinite",
+          }} />
+          <LockIcon size={13} />
+          <span style={{ fontSize: "11px", fontWeight: 700, color: "#e94560", letterSpacing: "0.05em", position: "relative" }}>
+            UNLOCK {issues.length > 1 ? `ALL ${issues.length} ISSUES` : "FIX"}
+          </span>
+          <span style={{
+            fontSize: "10px", fontWeight: 600, color: "#8892a4",
+            padding: "2px 8px", borderRadius: "4px",
+            background: "rgba(255,255,255,0.03)", position: "relative",
+          }}>
+            {categoryCost} tokens
+          </span>
+        </button>
       </div>
     </div>
   );
@@ -1054,26 +1117,38 @@ function AuditPageInner() {
                     </div>
                   )}
 
-                  {/* Fix all */}
+                  {/* Fix all — gated */}
                   {totalIssues > 0 && (
                     <div style={{
                       marginTop: audit.overall_score < 50 ? "8px" : "20px",
-                      padding: "10px 18px", borderRadius: "8px",
-                      background: "rgba(233, 69, 96, 0.03)", border: "1px solid rgba(233, 69, 96, 0.06)",
+                      padding: "12px 18px", borderRadius: "8px",
+                      background: "linear-gradient(135deg, rgba(233, 69, 96, 0.04), rgba(233, 69, 96, 0.01))",
+                      border: "1px solid rgba(233, 69, 96, 0.08)",
                       display: "flex", alignItems: "center", justifyContent: "space-between",
                       animation: "fade-in-up 0.5s ease-out 2.2s both",
+                      position: "relative", overflow: "hidden",
                     }}>
-                      <span style={{ fontSize: "12px", color: "#8892a4" }}>
+                      {/* Shimmer */}
+                      <div style={{
+                        position: "absolute", top: 0, left: "-100%", width: "100%", height: "100%",
+                        background: "linear-gradient(90deg, transparent, rgba(233, 69, 96, 0.03), transparent)",
+                        animation: "shimmer-lock 4s ease-in-out infinite",
+                      }} />
+                      <span style={{ fontSize: "12px", color: "#8892a4", position: "relative" }}>
                         <span style={{ fontWeight: 700, color: "#f1f5f9" }}>{totalIssues}</span> fixable issues across{" "}
                         {Object.keys(audit.category_issues).filter(k => (audit.category_issues[k]?.length || 0) > 0).length} categories
                       </span>
                       <button style={{
-                        padding: "8px 16px", borderRadius: "6px", border: "none",
+                        padding: "8px 18px", borderRadius: "6px", border: "none",
                         background: "linear-gradient(135deg, #e94560, #c13550)", color: "#fff",
                         fontSize: "11px", fontWeight: 700, cursor: "pointer",
                         boxShadow: "0 2px 10px rgba(233, 69, 96, 0.25)",
+                        display: "flex", alignItems: "center", gap: "6px",
+                        position: "relative",
+                        animation: "glow-pulse 2s ease-in-out infinite",
                       }}>
-                        FIX ALL <span style={{ opacity: 0.7 }}>({totalFixCost} tokens)</span>
+                        <LockIcon size={11} />
+                        FIX ALL <span style={{ opacity: 0.6 }}>({totalFixCost} tokens)</span>
                       </button>
                     </div>
                   )}
@@ -1126,27 +1201,104 @@ function AuditPageInner() {
                   </div>
                 )}
 
-                {/* AI Copy */}
+                {/* AI Copy — LOCKED */}
                 {audit.generated_copy && (audit.generated_copy.title || audit.generated_copy.bullets) && (
-                  <div style={{ padding: "18px", borderRadius: "10px", background: "rgba(13, 13, 32, 0.9)", border: "1px solid rgba(255,255,255,0.03)" }}>
-                    <div style={{ fontSize: "9px", fontWeight: 700, color: "#e94560", letterSpacing: "0.12em", marginBottom: "14px", fontFamily: "'Courier New', monospace" }}>AI-GENERATED COPY</div>
-                    {audit.generated_copy.title?.optimized && <CopyBlock label="Title" text={audit.generated_copy.title.optimized} />}
-                    {audit.generated_copy.bullets?.optimized && (
-                      <CopyBlock label="Bullets" text={
-                        Array.isArray(audit.generated_copy.bullets.optimized)
-                          ? audit.generated_copy.bullets.optimized.map((b: string, i: number) => `${i + 1}. ${b}`).join("\n")
-                          : audit.generated_copy.bullets.optimized
-                      } />
-                    )}
-                    {audit.generated_copy.description?.optimized && <CopyBlock label="Description" text={audit.generated_copy.description.optimized} />}
+                  <div style={{ padding: "18px", borderRadius: "10px", background: "rgba(13, 13, 32, 0.9)", border: "1px solid rgba(255,255,255,0.03)", position: "relative", overflow: "hidden" }}>
+                    <div style={{ fontSize: "9px", fontWeight: 700, color: "#e94560", letterSpacing: "0.12em", marginBottom: "14px", fontFamily: "'Courier New', monospace" }}>AI-OPTIMIZED COPY</div>
+                    {/* Blurred preview */}
+                    <div style={{ filter: "blur(8px)", opacity: 0.25, pointerEvents: "none", userSelect: "none" }}>
+                      <div style={{ padding: "8px 12px", borderRadius: "6px", background: "rgba(255,255,255,0.015)", marginBottom: "8px" }}>
+                        <p style={{ color: "#c8d0dc", fontSize: "12px", margin: 0 }}>
+                          {audit.generated_copy.title?.optimized?.slice(0, 80) || "Optimized product title with strategic keyword placement and conversion-focused copy..."}
+                        </p>
+                      </div>
+                      <div style={{ padding: "8px 12px", borderRadius: "6px", background: "rgba(255,255,255,0.015)", marginBottom: "8px" }}>
+                        <p style={{ color: "#c8d0dc", fontSize: "12px", margin: 0 }}>1. Premium quality materials engineered for maximum durability and...</p>
+                        <p style={{ color: "#c8d0dc", fontSize: "12px", margin: "4px 0 0" }}>2. Advanced ergonomic design provides superior comfort during...</p>
+                      </div>
+                    </div>
+                    {/* Lock overlay */}
+                    <div style={{
+                      position: "absolute", inset: 0,
+                      background: "linear-gradient(180deg, transparent 0%, rgba(13, 13, 32, 0.9) 30%, rgba(13, 13, 32, 0.98) 100%)",
+                      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "12px",
+                    }}>
+                      <div style={{
+                        width: "48px", height: "48px", borderRadius: "12px",
+                        background: "rgba(233, 69, 96, 0.06)", border: "1px solid rgba(233, 69, 96, 0.12)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        boxShadow: "0 0 30px rgba(233, 69, 96, 0.08)",
+                        color: "#e94560",
+                      }}>
+                        <LockIcon size={20} />
+                      </div>
+                      <div style={{ textAlign: "center" }}>
+                        <div style={{ fontSize: "13px", fontWeight: 700, color: "#f1f5f9", marginBottom: "4px" }}>
+                          AI-Rewritten Copy Ready
+                        </div>
+                        <div style={{ fontSize: "11px", color: "#525c6c" }}>
+                          Title, bullets & description optimized for conversion
+                        </div>
+                      </div>
+                      <button style={{
+                        padding: "10px 28px", borderRadius: "8px", border: "none",
+                        background: "linear-gradient(135deg, #e94560, #c13550)",
+                        color: "#fff", fontSize: "12px", fontWeight: 700, cursor: "pointer",
+                        boxShadow: "0 4px 20px rgba(233, 69, 96, 0.3), 0 0 40px rgba(233, 69, 96, 0.1)",
+                        display: "flex", alignItems: "center", gap: "8px",
+                        animation: "glow-pulse 2s ease-in-out infinite",
+                      }}>
+                        <LockIcon size={12} />
+                        UNLOCK COPY
+                        <span style={{ opacity: 0.7, fontSize: "10px" }}>15 tokens</span>
+                      </button>
+                    </div>
                   </div>
                 )}
 
-                {/* Competitive Intel */}
+                {/* Competitive Intel — LOCKED */}
                 {audit.competitive_data?.competitive_summary && (
-                  <div style={{ padding: "18px", borderRadius: "10px", background: "rgba(13, 13, 32, 0.9)", border: "1px solid rgba(255,255,255,0.03)" }}>
+                  <div style={{ padding: "18px", borderRadius: "10px", background: "rgba(13, 13, 32, 0.9)", border: "1px solid rgba(255,255,255,0.03)", position: "relative", overflow: "hidden", minHeight: "160px" }}>
                     <div style={{ fontSize: "9px", fontWeight: 700, color: "#f59e0b", letterSpacing: "0.12em", marginBottom: "10px", fontFamily: "'Courier New', monospace" }}>COMPETITIVE INTELLIGENCE</div>
-                    <p style={{ color: "#8892a4", fontSize: "12px", lineHeight: 1.7, margin: 0 }}>{audit.competitive_data.competitive_summary}</p>
+                    {/* Blurred preview */}
+                    <div style={{ filter: "blur(8px)", opacity: 0.2, pointerEvents: "none", userSelect: "none" }}>
+                      <p style={{ color: "#8892a4", fontSize: "12px", lineHeight: 1.7, margin: 0 }}>{audit.competitive_data.competitive_summary}</p>
+                    </div>
+                    {/* Lock overlay */}
+                    <div style={{
+                      position: "absolute", inset: 0,
+                      background: "linear-gradient(180deg, transparent 0%, rgba(13, 13, 32, 0.85) 25%, rgba(13, 13, 32, 0.98) 100%)",
+                      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "12px",
+                    }}>
+                      <div style={{
+                        width: "48px", height: "48px", borderRadius: "12px",
+                        background: "rgba(245, 158, 11, 0.06)", border: "1px solid rgba(245, 158, 11, 0.12)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        boxShadow: "0 0 30px rgba(245, 158, 11, 0.08)",
+                        color: "#f59e0b",
+                      }}>
+                        <LockIcon size={20} />
+                      </div>
+                      <div style={{ textAlign: "center" }}>
+                        <div style={{ fontSize: "13px", fontWeight: 700, color: "#f1f5f9", marginBottom: "4px" }}>
+                          Competitor Analysis Ready
+                        </div>
+                        <div style={{ fontSize: "11px", color: "#525c6c" }}>
+                          See how top competitors structure their listings
+                        </div>
+                      </div>
+                      <button style={{
+                        padding: "10px 28px", borderRadius: "8px", border: "none",
+                        background: "linear-gradient(135deg, #f59e0b, #d97706)",
+                        color: "#fff", fontSize: "12px", fontWeight: 700, cursor: "pointer",
+                        boxShadow: "0 4px 20px rgba(245, 158, 11, 0.2)",
+                        display: "flex", alignItems: "center", gap: "8px",
+                      }}>
+                        <LockIcon size={12} />
+                        UNLOCK INTEL
+                        <span style={{ opacity: 0.7, fontSize: "10px" }}>10 tokens</span>
+                      </button>
+                    </div>
                   </div>
                 )}
 
@@ -1170,6 +1322,8 @@ function AuditPageInner() {
         @keyframes results-cascade { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes rotate-border { from { --angle: 0deg; } to { --angle: 360deg; } }
         @keyframes img-scan { 0% { top: 0; } 50% { top: 100%; } 100% { top: 0; } }
+        @keyframes shimmer-lock { 0% { left: -100%; } 100% { left: 200%; } }
+        @keyframes glow-pulse { 0%, 100% { box-shadow: 0 4px 20px rgba(233,69,96,0.3), 0 0 40px rgba(233,69,96,0.1); } 50% { box-shadow: 0 4px 30px rgba(233,69,96,0.5), 0 0 60px rgba(233,69,96,0.2); } }
         @property --angle { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
       `}</style>
     </div>
